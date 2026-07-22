@@ -1,0 +1,6 @@
+{
+  "name": "Virtude Big Bags - MES Production System",
+  "description": "Sistema de Gestão Visual da Produção e PCP Industrial para VIRTUDE BIG BAG'S em Node.js / Express com importação Excel, controle de OPs, acompanhamento por etapa, OEE, indicadores e relatórios.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
