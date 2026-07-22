@@ -105,7 +105,6 @@ async function startServer() {
   } else {
     // Production mode: serve static built files from dist
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static("dist"));
     app.use(express.static(distPath));
     app.get('*', (_req: Request, res: Response) => {
       res.sendFile(path.join(distPath, 'index.html'));
