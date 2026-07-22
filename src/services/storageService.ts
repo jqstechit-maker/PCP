@@ -60,75 +60,177 @@ class StorageService {
     localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(ops));
   }
 
-  public getPedidos(): Pedido[] {
+  public syncDerivadosComOps(): void {
+    const ops = this.getOps();
+    if (ops.length === 0) return;
+
+    // 1. Clientes
+    const currentClientes = this.getClientesDirect();
+    const clientesMap = new Map<string, Cliente>();
+    currentClientes.forEach((c) => clientesMap.set(c.nome.toLowerCase().trim(), c));
+
+    // 2. Produtos
+    const currentProdutos = this.getProdutosDirect();
+    const produtosMap = new Map<string, Produto>();
+    currentProdutos.forEach((p) => {
+      produtosMap.set(p.nome.toLowerCase().trim(), p);
+      if (p.codigo) produtosMap.set(p.codigo.toLowerCase().trim(), p);
+    });
+
+    // 3. Pedidos
+    const currentPedidos = this.getPedidosDirect();
+    const pedidosMap = new Map<string, Pedido>();
+    currentPedidos.forEach((p) => pedidosMap.set(p.pedidoNumber.toUpperCase().trim(), p));
+
+    ops.forEach((op) => {
+      // Sync Cliente
+      if (op.cliente && op.cliente.trim() && op.cliente !== 'Cliente Indefinido') {
+        const cliKey = op.cliente.toLowerCase().trim();
+        if (!clientesMap.has(cliKey)) {
+          const novoCli: Cliente = {
+            id: `cli-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            nome: op.cliente.trim(),
+            cnpj: '12.345.678/0001-90',
+            cidadeUF: 'São Paulo / SP',
+            contato: 'Setor Compras / PCP',
+            telefone: '(11) 3000-0000',
+            email: 'contato@cliente.com.br',
+            pedidosAtivos: 1,
+            totalBigBagsComprados: op.quantidade || 0,
+            status: 'ATIVO',
+          };
+          clientesMap.set(cliKey, novoCli);
+        } else {
+          const cli = clientesMap.get(cliKey)!;
+          cli.totalBigBagsComprados = (cli.totalBigBagsComprados || 0) + (op.quantidade || 0);
+        }
+      }
+
+      // Sync Produto
+      if (op.produto && op.produto.trim()) {
+        const prodKey = op.produto.toLowerCase().trim();
+        if (!produtosMap.has(prodKey)) {
+          const novoProd: Produto = {
+            id: `prod-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            codigo: `BB-${op.produto.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase() || 'STD'}-${op.capacidadeCargaKg || 1000}`,
+            nome: op.produto.trim(),
+            modelo: op.modelo || 'Saia Superior / Fundo Fechado',
+            dimensoes: '90 x 90 x 120 cm',
+            capacidadeKg: op.capacidadeCargaKg || 1000,
+            gramaturaTecido: op.tecidoGrm || 160,
+            tipoAlca: '4 Alças de Canto 30cm',
+            tempoPadraoMinutos: 15,
+            metaProducaoHora: 20,
+          };
+          produtosMap.set(prodKey, novoProd);
+        }
+      }
+
+      // Sync Pedido
+      if (op.pedidoNumber && op.pedidoNumber.trim() && op.pedidoNumber !== 'PED-VAR') {
+        const pedKey = op.pedidoNumber.toUpperCase().trim();
+        if (!pedidosMap.has(pedKey)) {
+          const novoPed: Pedido = {
+            id: `ped-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            pedidoNumber: op.pedidoNumber.toUpperCase().trim(),
+            cliente: op.cliente || 'Cliente Indefinido',
+            dataPedido: op.dataProgramada || new Date().toISOString().substring(0, 10),
+            dataPrevisaoEntrega: op.dataEntrega || new Date().toISOString().substring(0, 10),
+            status: op.status === 'FINALIZADO' ? 'CONCLUIDO' : op.status === 'ATRASADO' ? 'PENDENTE' : 'EM_PRODUCAO',
+            totalItens: op.quantidade || 0,
+            totalProduzido: op.quantidadeProduzida || 0,
+            ops: [op.opNumber],
+            valorTotal: (op.quantidade || 0) * 48.50,
+          };
+          pedidosMap.set(pedKey, novoPed);
+        } else {
+          const ped = pedidosMap.get(pedKey)!;
+          if (!ped.ops.includes(op.opNumber)) {
+            ped.ops.push(op.opNumber);
+          }
+          ped.totalItens = (ped.totalItens || 0) + (op.quantidade || 0);
+          ped.totalProduzido = (ped.totalProduzido || 0) + (op.quantidadeProduzida || 0);
+        }
+      }
+    });
+
+    this.saveClientes(Array.from(clientesMap.values()));
+    this.saveProdutos(Array.from(produtosMap.values()));
+    this.savePedidos(Array.from(pedidosMap.values()));
+  }
+
+  private getPedidosDirect(): Pedido[] {
     const raw = localStorage.getItem(STORAGE_KEYS.PEDIDOS);
-    if (!raw) {
-      this.savePedidos([]);
-      return [];
-    }
+    if (!raw) return [];
     try {
       const parsed: Pedido[] = JSON.parse(raw);
-      const cleaned = parsed.filter(
+      return parsed.filter(
         (p) => !['ped-1042', 'ped-1043', 'ped-1044', 'ped-1045', 'ped-1046'].includes(p.id)
       );
-      if (cleaned.length !== parsed.length) {
-        this.savePedidos(cleaned);
-      }
-      return cleaned;
     } catch {
-      this.savePedidos([]);
       return [];
     }
+  }
+
+  public getPedidos(): Pedido[] {
+    let list = this.getPedidosDirect();
+    if (list.length === 0 && this.getOps().length > 0) {
+      this.syncDerivadosComOps();
+      list = this.getPedidosDirect();
+    }
+    return list;
   }
 
   public savePedidos(pedidos: Pedido[]): void {
     localStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(pedidos));
   }
 
-  public getClientes(): Cliente[] {
+  private getClientesDirect(): Cliente[] {
     const raw = localStorage.getItem(STORAGE_KEYS.CLIENTES);
-    if (!raw) {
-      this.saveClientes([]);
-      return [];
-    }
+    if (!raw) return [];
     try {
       const parsed: Cliente[] = JSON.parse(raw);
-      const cleaned = parsed.filter(
+      return parsed.filter(
         (c) => !['cli-1', 'cli-2', 'cli-3', 'cli-4', 'cli-5'].includes(c.id)
       );
-      if (cleaned.length !== parsed.length) {
-        this.saveClientes(cleaned);
-      }
-      return cleaned;
     } catch {
-      this.saveClientes([]);
       return [];
     }
+  }
+
+  public getClientes(): Cliente[] {
+    let list = this.getClientesDirect();
+    if (list.length === 0 && this.getOps().length > 0) {
+      this.syncDerivadosComOps();
+      list = this.getClientesDirect();
+    }
+    return list;
   }
 
   public saveClientes(clientes: Cliente[]): void {
     localStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify(clientes));
   }
 
-  public getProdutos(): Produto[] {
+  private getProdutosDirect(): Produto[] {
     const raw = localStorage.getItem(STORAGE_KEYS.PRODUTOS);
-    if (!raw) {
-      this.saveProdutos([]);
-      return [];
-    }
+    if (!raw) return [];
     try {
       const parsed: Produto[] = JSON.parse(raw);
-      const cleaned = parsed.filter(
+      return parsed.filter(
         (p) => !['prod-1', 'prod-2', 'prod-3', 'prod-4', 'prod-5'].includes(p.id)
       );
-      if (cleaned.length !== parsed.length) {
-        this.saveProdutos(cleaned);
-      }
-      return cleaned;
     } catch {
-      this.saveProdutos([]);
       return [];
     }
+  }
+
+  public getProdutos(): Produto[] {
+    let list = this.getProdutosDirect();
+    if (list.length === 0 && this.getOps().length > 0) {
+      this.syncDerivadosComOps();
+      list = this.getProdutosDirect();
+    }
+    return list;
   }
 
   public saveProdutos(produtos: Produto[]): void {

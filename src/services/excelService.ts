@@ -163,34 +163,86 @@ class ExcelService {
           rows.forEach((row, index) => {
             const linhaNum = index + 2; // Accounting for header row
 
-            // Normalize row key lookup
+            // Normalize and sanitize key lookup
+            const sanitizeKey = (str: string): string => {
+              if (!str) return '';
+              return str
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, '');
+            };
+
+            const rowKeys = Object.keys(row);
+
             const getCol = (possibleKeys: string[]): string => {
+              // 1. Exact sanitized match
               for (const pk of possibleKeys) {
-                const foundKey = Object.keys(row).find(
-                  (k) => k.trim().toUpperCase() === pk.toUpperCase()
-                );
-                if (foundKey && row[foundKey] !== undefined) {
+                const pkSan = sanitizeKey(pk);
+                const foundKey = rowKeys.find((k) => sanitizeKey(k) === pkSan);
+                if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && String(row[foundKey]).trim() !== '') {
                   return String(row[foundKey]).trim();
                 }
               }
+
+              // 2. Contains sanitized match
+              for (const pk of possibleKeys) {
+                const pkSan = sanitizeKey(pk);
+                if (!pkSan) continue;
+                const foundKey = rowKeys.find((k) => {
+                  const kSan = sanitizeKey(k);
+                  return kSan.length > 2 && (kSan.includes(pkSan) || pkSan.includes(kSan));
+                });
+                if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && String(row[foundKey]).trim() !== '') {
+                  return String(row[foundKey]).trim();
+                }
+              }
+
               return '';
             };
 
-            const opNumber = getCol(['OP', 'ORDEM_PRODUCAO', 'NUMERO_OP', 'ORDEM']);
-            const pedidoNumber = getCol(['PEDIDO', 'NUMERO_PEDIDO', 'PED']);
-            const cliente = getCol(['CLIENTE', 'NOME_CLIENTE', 'RAZAO_SOCIAL']);
-            const produto = getCol(['PRODUTO', 'ITEM', 'DESCRICAO']);
-            const modelo = getCol(['MODELO', 'TIPO_MODELO', 'ESPECIFICACAO']);
-            const quantidadeRaw = getCol(['QUANTIDADE', 'QTD', 'QTD_TOTAL']);
-            const qtdProduzidaRaw = getCol(['QTD_PRODUZIDA', 'PRODUZIDO', 'QTD_PRD']);
-            const statusRaw = getCol(['STATUS', 'SITUACAO', 'ETAPA']);
-            const prioridadeRaw = getCol(['PRIORIDADE', 'PRIOR']);
-            const eficiencaRaw = getCol(['EFICIENCIA_%', 'EFICIENCIA', 'EFIC']);
-            const dataProgRaw = getCol(['DATA_PROGRAMADA', 'DATA_PROG', 'PROGRAMADA']);
-            const dataEntregaRaw = getCol(['DATA_ENTREGA', 'ENTREGA', 'PREVISAO']);
-            const capacidadeRaw = getCol(['CAPACIDADE_KG', 'CARGA_KG', 'CARGA']);
-            const gramaturaRaw = getCol(['GRAMATURA_GRM', 'GRAMATURA', 'GRAM']);
-            const observacoes = getCol(['OBSERVACOES', 'OBS', 'NOTAS']);
+            const opNumber = getCol([
+              'OP', 'ORDEM', 'ORDEM_PRODUCAO', 'ORDEM DE PRODUCAO', 'ORDEM PRODUCAO',
+              'NUMERO_OP', 'NUMERO OP', 'N_OP', 'Nº OP', 'OP N°', 'LOTE', 'PROGRAMACAO'
+            ]);
+
+            const pedidoNumber = getCol([
+              'PEDIDO', 'NUMERO_PEDIDO', 'NUMERO PEDIDO', 'PED', 'N_PEDIDO',
+              'Nº PEDIDO', 'PEDIDO DE VENDA', 'PEDIDO_VENDA', 'PEDIDO VENDA'
+            ]);
+
+            const cliente = getCol([
+              'CLIENTE', 'NOME_CLIENTE', 'NOME CLIENTE', 'RAZAO_SOCIAL', 'RAZÃO SOCIAL',
+              'RAZAO SOCIAL', 'CLIENTE / RAZAO SOCIAL', 'NOME DO CLIENTE', 'EMPRESA', 'COMPRADOR'
+            ]);
+
+            const produto = getCol([
+              'PRODUTO', 'ITEM', 'DESCRICAO', 'DESCRIÇÃO', 'MODELO BIG BAG',
+              'DESCRICAO DO PRODUTO', 'DESCRICAO_PRODUTO', 'PRODUTO / ITEM', 'BIG BAG', 'TIPO BIG BAG'
+            ]);
+
+            const modelo = getCol([
+              'MODELO', 'TIPO_MODELO', 'ESPECIFICACAO', 'ESPECIFICAÇÃO', 'TIPO MODELO',
+              'MODELO DO BIG BAG', 'ESPECIFICACAO TECNICA', 'FECHAMENTO'
+            ]);
+
+            const quantidadeRaw = getCol([
+              'QUANTIDADE', 'QTD', 'QTDE', 'QUANT', 'QTD_TOTAL', 'QUANTIDADE TOTAL', 'QTD TOTAL', 'QTD PEDIDA', 'VOLUME'
+            ]);
+
+            const qtdProduzidaRaw = getCol([
+              'QTD_PRODUZIDA', 'PRODUZIDO', 'PRODUZIDA', 'QTD_PRD', 'QTD PRODUZIDA',
+              'QUANTIDADE PRODUZIDA', 'QUANTIDADE PRD', 'QTD FEITA', 'CONCLUIDO'
+            ]);
+
+            const statusRaw = getCol(['STATUS', 'SITUACAO', 'SITUAÇÃO', 'ETAPA', 'STATUS OP', 'FASE']);
+            const prioridadeRaw = getCol(['PRIORIDADE', 'PRIOR', 'URGENCIA']);
+            const eficiencaRaw = getCol(['EFICIENCIA_%', 'EFICIENCIA', 'EFICIÊNCIA', 'EFIC']);
+            const dataProgRaw = getCol(['DATA_PROGRAMADA', 'DATA PROGRAMADA', 'DATA_PROG', 'DATA PROG', 'PROGRAMADA', 'DATA FABRICACAO', 'DATA INICIO']);
+            const dataEntregaRaw = getCol(['DATA_ENTREGA', 'DATA ENTREGA', 'ENTREGA', 'PREVISAO', 'PREVISÃO', 'PREVISAO ENTREGA', 'PREVISÃO ENTREGA', 'PRAZO']);
+            const capacidadeRaw = getCol(['CAPACIDADE_KG', 'CAPACIDADE KG', 'CARGA_KG', 'CARGA KG', 'CARGA', 'CAPACIDADE', 'KG', 'PESO']);
+            const gramaturaRaw = getCol(['GRAMATURA_GRM', 'GRAMATURA GRM', 'GRAMATURA', 'GRAM', 'TECIDO']);
+            const observacoes = getCol(['OBSERVACOES', 'OBSERVAÇÕES', 'OBS', 'NOTAS', 'OBSERVACAO']);
 
             if (!opNumber) {
               errosEncontrados++;
@@ -212,7 +264,7 @@ class ExcelService {
             const opData: OrdemProducao = {
               id: opMap.get(opKey)?.id || `op-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
               opNumber: opNumber.toUpperCase(),
-              pedidoNumber: pedidoNumber.toUpperCase() || 'PED-VAR',
+              pedidoNumber: pedidoNumber ? pedidoNumber.toUpperCase() : 'PED-VAR',
               cliente: cliente || 'Cliente Indefinido',
               produto: produto || 'Big Bag Standard',
               modelo: modelo || 'Saia Superior / Fundo Fechado',
@@ -257,8 +309,9 @@ class ExcelService {
             }
           });
 
-          // Save updated list
+          // Save updated list of OPs and sync Clientes, Produtos and Pedidos
           storageService.saveOps(opsAtualizadas);
+          storageService.syncDerivadosComOps();
 
           const usuario = storageService.getUsuario();
           const logObj: LogImportacao = {
