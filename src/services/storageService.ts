@@ -24,8 +24,8 @@ import {
 const STORAGE_KEYS = {
   OPS: 'virtude_ops_v2',
   PEDIDOS: 'virtude_pedidos_v2',
-  CLIENTES: 'virtude_clientes_v1',
-  PRODUTOS: 'virtude_produtos_v1',
+  CLIENTES: 'virtude_clientes_v2',
+  PRODUTOS: 'virtude_produtos_v2',
   LOGS_IMPORTACAO: 'virtude_logs_imp_v2',
   LOGS_SISTEMA: 'virtude_logs_sys_v2',
   USUARIO: 'virtude_usuario_v1',
@@ -88,13 +88,21 @@ class StorageService {
   public getClientes(): Cliente[] {
     const raw = localStorage.getItem(STORAGE_KEYS.CLIENTES);
     if (!raw) {
-      this.saveClientes(INITIAL_CLIENTES);
-      return INITIAL_CLIENTES;
+      this.saveClientes([]);
+      return [];
     }
     try {
-      return JSON.parse(raw);
+      const parsed: Cliente[] = JSON.parse(raw);
+      const cleaned = parsed.filter(
+        (c) => !['cli-1', 'cli-2', 'cli-3', 'cli-4', 'cli-5'].includes(c.id)
+      );
+      if (cleaned.length !== parsed.length) {
+        this.saveClientes(cleaned);
+      }
+      return cleaned;
     } catch {
-      return INITIAL_CLIENTES;
+      this.saveClientes([]);
+      return [];
     }
   }
 
@@ -105,13 +113,21 @@ class StorageService {
   public getProdutos(): Produto[] {
     const raw = localStorage.getItem(STORAGE_KEYS.PRODUTOS);
     if (!raw) {
-      this.saveProdutos(INITIAL_PRODUTOS);
-      return INITIAL_PRODUTOS;
+      this.saveProdutos([]);
+      return [];
     }
     try {
-      return JSON.parse(raw);
+      const parsed: Produto[] = JSON.parse(raw);
+      const cleaned = parsed.filter(
+        (p) => !['prod-1', 'prod-2', 'prod-3', 'prod-4', 'prod-5'].includes(p.id)
+      );
+      if (cleaned.length !== parsed.length) {
+        this.saveProdutos(cleaned);
+      }
+      return cleaned;
     } catch {
-      return INITIAL_PRODUTOS;
+      this.saveProdutos([]);
+      return [];
     }
   }
 
