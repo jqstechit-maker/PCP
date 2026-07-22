@@ -22,14 +22,14 @@ import {
 } from '../types';
 
 const STORAGE_KEYS = {
-  OPS: 'virtude_ops_v1',
-  PEDIDOS: 'virtude_pedidos_v1',
+  OPS: 'virtude_ops_v2',
+  PEDIDOS: 'virtude_pedidos_v2',
   CLIENTES: 'virtude_clientes_v1',
   PRODUTOS: 'virtude_produtos_v1',
-  LOGS_IMPORTACAO: 'virtude_logs_imp_v1',
-  LOGS_SISTEMA: 'virtude_logs_sys_v1',
+  LOGS_IMPORTACAO: 'virtude_logs_imp_v2',
+  LOGS_SISTEMA: 'virtude_logs_sys_v2',
   USUARIO: 'virtude_usuario_v1',
-  USUARIOS_SISTEMA: 'virtude_usuarios_sistema_v1',
+  USUARIOS_SISTEMA: 'virtude_usuarios_sistema_v2',
   TEMA: 'virtude_tema_v1',
 };
 
@@ -38,13 +38,21 @@ class StorageService {
   public getOps(): OrdemProducao[] {
     const raw = localStorage.getItem(STORAGE_KEYS.OPS);
     if (!raw) {
-      this.saveOps(INITIAL_OPS);
-      return INITIAL_OPS;
+      this.saveOps([]);
+      return [];
     }
     try {
-      return JSON.parse(raw);
+      const parsed: OrdemProducao[] = JSON.parse(raw);
+      const cleaned = parsed.filter(
+        (op) => !['op-101', 'op-102', 'op-103', 'op-104', 'op-105', 'op-106', 'op-107'].includes(op.id)
+      );
+      if (cleaned.length !== parsed.length) {
+        this.saveOps(cleaned);
+      }
+      return cleaned;
     } catch {
-      return INITIAL_OPS;
+      this.saveOps([]);
+      return [];
     }
   }
 
@@ -55,13 +63,21 @@ class StorageService {
   public getPedidos(): Pedido[] {
     const raw = localStorage.getItem(STORAGE_KEYS.PEDIDOS);
     if (!raw) {
-      this.savePedidos(INITIAL_PEDIDOS);
-      return INITIAL_PEDIDOS;
+      this.savePedidos([]);
+      return [];
     }
     try {
-      return JSON.parse(raw);
+      const parsed: Pedido[] = JSON.parse(raw);
+      const cleaned = parsed.filter(
+        (p) => !['ped-1042', 'ped-1043', 'ped-1044', 'ped-1045', 'ped-1046'].includes(p.id)
+      );
+      if (cleaned.length !== parsed.length) {
+        this.savePedidos(cleaned);
+      }
+      return cleaned;
     } catch {
-      return INITIAL_PEDIDOS;
+      this.savePedidos([]);
+      return [];
     }
   }
 
@@ -106,13 +122,19 @@ class StorageService {
   public getLogsImportacao(): LogImportacao[] {
     const raw = localStorage.getItem(STORAGE_KEYS.LOGS_IMPORTACAO);
     if (!raw) {
-      this.saveLogsImportacao(INITIAL_LOGS_IMPORTACAO);
-      return INITIAL_LOGS_IMPORTACAO;
+      this.saveLogsImportacao([]);
+      return [];
     }
     try {
-      return JSON.parse(raw);
+      const parsed: LogImportacao[] = JSON.parse(raw);
+      const cleaned = parsed.filter((log) => !['imp-001', 'imp-002'].includes(log.id));
+      if (cleaned.length !== parsed.length) {
+        this.saveLogsImportacao(cleaned);
+      }
+      return cleaned;
     } catch {
-      return INITIAL_LOGS_IMPORTACAO;
+      this.saveLogsImportacao([]);
+      return [];
     }
   }
 
@@ -123,13 +145,21 @@ class StorageService {
   public getLogsSistema(): LogSistema[] {
     const raw = localStorage.getItem(STORAGE_KEYS.LOGS_SISTEMA);
     if (!raw) {
-      this.saveLogsSistema(INITIAL_LOGS_SISTEMA);
-      return INITIAL_LOGS_SISTEMA;
+      this.saveLogsSistema([]);
+      return [];
     }
     try {
-      return JSON.parse(raw);
+      const parsed: LogSistema[] = JSON.parse(raw);
+      const cleaned = parsed.filter(
+        (log) => !['log-101', 'log-102', 'log-103', 'log-104'].includes(log.id)
+      );
+      if (cleaned.length !== parsed.length) {
+        this.saveLogsSistema(cleaned);
+      }
+      return cleaned;
     } catch {
-      return INITIAL_LOGS_SISTEMA;
+      this.saveLogsSistema([]);
+      return [];
     }
   }
 
@@ -185,13 +215,21 @@ class StorageService {
   public getUsuariosSistema(): UsuarioSistema[] {
     const raw = localStorage.getItem(STORAGE_KEYS.USUARIOS_SISTEMA);
     if (!raw) {
-      this.saveUsuariosSistema(INITIAL_USUARIOS_SISTEMA);
-      return INITIAL_USUARIOS_SISTEMA;
+      this.saveUsuariosSistema([]);
+      return [];
     }
     try {
-      return JSON.parse(raw);
+      const parsed: UsuarioSistema[] = JSON.parse(raw);
+      const cleaned = parsed.filter(
+        (u) => !['usys-001', 'usys-002', 'usys-003', 'usys-004'].includes(u.id)
+      );
+      if (cleaned.length !== parsed.length) {
+        this.saveUsuariosSistema(cleaned);
+      }
+      return cleaned;
     } catch {
-      return INITIAL_USUARIOS_SISTEMA;
+      this.saveUsuariosSistema([]);
+      return [];
     }
   }
 
@@ -247,17 +285,17 @@ class StorageService {
       }
     });
 
+    const totalOps = ops.length;
     const eficienciaGlobal =
-      ops.length > 0 ? Number((somaEficiencia / ops.length).toFixed(1)) : 95.0;
+      totalOps > 0 ? Number((somaEficiencia / totalOps).toFixed(1)) : 0;
 
     // MES OEE Calculation
-    // OEE = Disponibilidade (96%) * Desempenho (89%) * Qualidade (98.5%)
-    const oeeDisponibilidade = 96.2;
-    const oeeDesempenho = Number(((eficienciaGlobal / 100) * 94).toFixed(1));
-    const oeeQualidade = 98.8;
-    const oeeGeral = Number(
-      ((oeeDisponibilidade * oeeDesempenho * oeeQualidade) / 10000).toFixed(1)
-    );
+    const oeeDisponibilidade = totalOps > 0 ? 96.2 : 0;
+    const oeeDesempenho = totalOps > 0 ? Number(((eficienciaGlobal / 100) * 94).toFixed(1)) : 0;
+    const oeeQualidade = totalOps > 0 ? 98.8 : 0;
+    const oeeGeral = totalOps > 0
+      ? Number(((oeeDisponibilidade * oeeDesempenho * oeeQualidade) / 10000).toFixed(1))
+      : 0;
 
     return {
       pedidosProgramados,

@@ -131,6 +131,7 @@ export type RegraAcesso = 'VISUALIZACAO' | 'EDITAR';
 export interface UsuarioSistema {
   id: string;
   nome: string;
+  cargo?: string;
   departamento: GrupoUsuario;
   permissao: RegraAcesso;
   politicaAceita: boolean;

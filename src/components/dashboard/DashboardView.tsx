@@ -115,13 +115,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     cutout: '68%',
   };
 
+  const totalOps = ops.length;
+
   // --- Chart 2: Daily Production Trend (Line Chart) ---
   const lineData = {
     labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
     datasets: [
       {
         label: 'Produção Realizada (Big Bags)',
-        data: [680, 750, 890, 810, 920, 650],
+        data: totalOps > 0 ? [680, 750, 890, 810, 920, 650] : [0, 0, 0, 0, 0, 0],
         borderColor: '#3B82F6',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         tension: 0.3,
@@ -129,7 +131,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       },
       {
         label: 'Meta PCP (1.000 un)',
-        data: [1000, 1000, 1000, 1000, 1000, 1000],
+        data: totalOps > 0 ? [1000, 1000, 1000, 1000, 1000, 1000] : [0, 0, 0, 0, 0, 0],
         borderColor: '#94A3B8',
         borderDash: [5, 5],
         borderWidth: 2,
@@ -160,18 +162,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   // --- Chart 3: Client Volume Breakdown (Bar Chart) ---
+  const clientMap: Record<string, number> = {};
+  ops.forEach((op) => {
+    const nome = op.cliente.split(' ')[0] || op.cliente;
+    clientMap[nome] = (clientMap[nome] || 0) + op.quantidade;
+  });
+  const clientLabels = Object.keys(clientMap);
+  const clientValues = Object.values(clientMap);
+
   const barData = {
-    labels: [
-      'Agroquímica',
-      'Safra Forte',
-      'Vale Dourado',
-      'Santa Clara',
-      'Planalto Alim.',
-    ],
+    labels: clientLabels.length > 0 ? clientLabels : ['Sem dados'],
     datasets: [
       {
         label: 'Qtd Big Bags Programados',
-        data: [2100, 1900, 1500, 600, 1000],
+        data: clientValues.length > 0 ? clientValues : [0],
         backgroundColor: 'rgba(99, 102, 241, 0.8)',
         borderRadius: 6,
       },
@@ -301,7 +305,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-slate-100">{kpis.pedidosProgramados}</p>
           </div>
           <div className="mt-3 h-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-500 w-[60%]" />
+            <div
+              className="h-full bg-blue-500 transition-all duration-300"
+              style={{ width: `${totalOps > 0 ? Math.round((kpis.pedidosProgramados / totalOps) * 100) : 0}%` }}
+            />
           </div>
         </div>
 
@@ -312,7 +319,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <p className="text-2xl font-bold mt-1 text-orange-600 dark:text-amber-400">{kpis.pedidosProduzindo}</p>
           </div>
           <div className="mt-3 h-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-            <div className="h-full bg-orange-500 w-[40%]" />
+            <div
+              className="h-full bg-orange-500 transition-all duration-300"
+              style={{ width: `${totalOps > 0 ? Math.round((kpis.pedidosProduzindo / totalOps) * 100) : 0}%` }}
+            />
           </div>
         </div>
 
@@ -323,7 +333,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <p className="text-2xl font-bold mt-1 text-green-600 dark:text-emerald-400">{kpis.pedidosFinalizados}</p>
           </div>
           <div className="mt-3 h-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-            <div className="h-full bg-green-500 w-[80%]" />
+            <div
+              className="h-full bg-green-500 transition-all duration-300"
+              style={{ width: `${totalOps > 0 ? Math.round((kpis.pedidosFinalizados / totalOps) * 100) : 0}%` }}
+            />
           </div>
         </div>
 
@@ -334,7 +347,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <p className="text-2xl font-bold mt-1 text-red-600 dark:text-red-400">{kpis.pedidosAtrasados}</p>
           </div>
           <div className="mt-3 h-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-            <div className="h-full bg-red-500 w-[15%]" />
+            <div
+              className="h-full bg-red-500 transition-all duration-300"
+              style={{ width: `${totalOps > 0 ? Math.round((kpis.pedidosAtrasados / totalOps) * 100) : 0}%` }}
+            />
           </div>
         </div>
 
@@ -344,7 +360,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">Eficiência OEE</p>
             <p className="text-2xl font-bold mt-1">{kpis.eficienciaGlobal}%</p>
           </div>
-          <p className="text-[10px] text-green-400 font-mono mt-2 tracking-tight">+2.4% vs ONTÉM</p>
+          <p className="text-[10px] text-green-400 font-mono mt-2 tracking-tight">
+            {totalOps > 0 ? '+2.4% vs ONTÊM' : 'Sem OPs cadastradas'}
+          </p>
         </div>
       </div>
 

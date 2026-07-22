@@ -23,6 +23,7 @@ export const GestaoUsuariosView: React.FC = () => {
 
   // Form state
   const [nome, setNome] = useState('');
+  const [cargo, setCargo] = useState('');
   const [senha, setSenha] = useState('');
   const [departamento, setDepartamento] = useState<GrupoUsuario>('PRODUCAO');
   const [permissao, setPermissao] = useState<RegraAcesso>('EDITAR');
@@ -57,6 +58,7 @@ export const GestaoUsuariosView: React.FC = () => {
     const novoUsuario: UsuarioSistema = {
       id: `usys-${Date.now()}`,
       nome: nome.trim(),
+      cargo: cargo.trim() || 'Operador PCP',
       departamento,
       permissao,
       politicaAceita: true,
@@ -78,6 +80,7 @@ export const GestaoUsuariosView: React.FC = () => {
 
     // Limpa o formulário
     setNome('');
+    setCargo('');
     setSenha('');
     setPoliticaAceita(false);
     setMensagemSucesso(`Usuário "${novoUsuario.nome}" criado com sucesso! Login liberado.`);
@@ -253,6 +256,20 @@ export const GestaoUsuariosView: React.FC = () => {
               />
             </div>
 
+            {/* Campo Cargo */}
+            <div>
+              <label className="block text-slate-700 dark:text-slate-300 mb-1 font-semibold">
+                Cargo / Função:
+              </label>
+              <input
+                type="text"
+                value={cargo}
+                onChange={(e) => setCargo(e.target.value)}
+                placeholder="Ex: Operador de PCP, Gerente, Analista"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 font-medium"
+              />
+            </div>
+
             {/* Campo Senha */}
             <div>
               <label className="block text-slate-700 dark:text-slate-300 mb-1 font-semibold flex items-center space-x-1">
@@ -408,8 +425,13 @@ export const GestaoUsuariosView: React.FC = () => {
                       key={u.id}
                       className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors text-slate-700 dark:text-slate-300"
                     >
-                      <td className="p-3 font-semibold text-slate-900 dark:text-slate-100">
-                        {u.nome}
+                      <td className="p-3">
+                        <div className="font-semibold text-slate-900 dark:text-slate-100">
+                          {u.nome}
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
+                          {u.cargo || 'Operador PCP'}
+                        </div>
                       </td>
 
                       <td className="p-3">{renderBadgeDepto(u.departamento)}</td>

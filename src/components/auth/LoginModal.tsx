@@ -72,9 +72,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <div>
             <h4 className="font-bold text-sm text-slate-100">{usuarioAtual.nome}</h4>
             <p className="text-xs text-amber-400 font-medium">{usuarioAtual.cargo}</p>
-            <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-              {usuarioAtual.email}
-            </p>
           </div>
         </div>
 
