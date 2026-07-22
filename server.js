@@ -1,7 +1,6 @@
 // Entry point proxy for hosts expecting server.js at root
-try {
-  require('./dist/server.js');
-} catch (err) {
-  console.error('[PCP Server Launcher] Não foi possível carregar ./dist/server.js. Certifique-se de executar "npm run build".', err);
+import('./dist/server.js').catch((error) => {
+  console.error('[PCP Server Launcher] Erro ao iniciar o servidor:', error);
   process.exit(1);
-}
+});
+
