@@ -297,6 +297,216 @@ async function startServer() {
     }
   });
 
+  // MySQL Configuracoes GET & SYNC
+  app.get('/api/mysql/configuracoes', async (_req: Request, res: Response) => {
+    try {
+      const pool = getPool();
+      const [rows] = await pool.query<any[]>('SELECT * FROM configuracoes WHERE id = "geral"');
+      if (rows && rows.length > 0) {
+        const dados = typeof rows[0].dados === 'string' ? JSON.parse(rows[0].dados) : rows[0].dados;
+        res.json({ success: true, data: dados });
+      } else {
+        res.json({ success: true, data: null });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ success: false, error: msg });
+    }
+  });
+
+  app.post('/api/mysql/configuracoes/sync', async (req: Request, res: Response) => {
+    try {
+      const { configuracoes } = req.body;
+      if (!configuracoes) {
+        res.status(400).json({ success: false, error: 'Objeto "configuracoes" é obrigatório.' });
+        return;
+      }
+      await initMySQLTables();
+      const pool = getPool();
+      await pool.query(
+        `INSERT INTO configuracoes (id, dados) VALUES ('geral', ?)
+         ON DUPLICATE KEY UPDATE dados = VALUES(dados)`,
+        [JSON.stringify(configuracoes)]
+      );
+      res.json({ success: true, message: 'Configurações salvas no MySQL Hostinger!' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ success: false, error: msg });
+    }
+  });
+
+  // MySQL Usuarios Sistema GET & SYNC
+  app.get('/api/mysql/usuarios-sistema', async (_req: Request, res: Response) => {
+    try {
+      const pool = getPool();
+      const [rows] = await pool.query<any[]>('SELECT * FROM usuarios_sistema ORDER BY created_at DESC');
+      const usuarios = rows.map((r) => ({
+        ...r,
+        politicaAceita: Boolean(r.politicaAceita),
+        modulosPermitidos: typeof r.modulosPermitidos === 'string' ? JSON.parse(r.modulosPermitidos) : r.modulosPermitidos || [],
+      }));
+      res.json({ success: true, data: usuarios });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ success: false, error: msg });
+    }
+  });
+
+  app.post('/api/mysql/usuarios-sistema/sync', async (req: Request, res: Response) => {
+    try {
+      const { usuarios } = req.body;
+      if (!Array.isArray(usuarios)) {
+        res.status(400).json({ success: false, error: 'Array "usuarios" é obrigatório.' });
+        return;
+      }
+      await initMySQLTables();
+      const pool = getPool();
+      for (const u of usuarios) {
+        await pool.query(
+          `INSERT INTO usuarios_sistema (
+            id, nome, senha, departamento, permissao, politicaAceita, status, cargo, modulosPermitidos
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            nome = VALUES(nome),
+            senha = VALUES(senha),
+            departamento = VALUES(departamento),
+            permissao = VALUES(permissao),
+            politicaAceita = VALUES(politicaAceita),
+            status = VALUES(status),
+            cargo = VALUES(cargo),
+            modulosPermitidos = VALUES(modulosPermitidos)`,
+          [
+            u.id,
+            u.nome || '',
+            u.senha || '',
+            u.departamento || 'ADM',
+            u.permissao || 'EDITAR',
+            u.politicaAceita ? 1 : 0,
+            u.status || 'ATIVO',
+            u.cargo || '',
+            JSON.stringify(u.modulosPermitidos || []),
+          ]
+        );
+      }
+      res.json({ success: true, count: usuarios.length, message: 'Usuários do Sistema sincronizados no MySQL Hostinger!' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ success: false, error: msg });
+    }
+  });
+
+  // MySQL Logs Importacao GET & SYNC
+  app.get('/api/mysql/logs-importacao', async (_req: Request, res: Response) => {
+    try {
+      const pool = getPool();
+      const [rows] = await pool.query('SELECT * FROM logs_importacao ORDER BY created_at DESC LIMIT 100');
+      res.json({ success: true, data: rows });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ success: false, error: msg });
+    }
+  });
+
+  app.post('/api/mysql/logs-importacao/sync', async (req: Request, res: Response) => {
+    try {
+      const { logs } = req.body;
+      if (!Array.isArray(logs)) {
+        res.status(400).json({ success: false, error: 'Array "logs" é obrigatório.' });
+        return;
+      }
+      await initMySQLTables();
+      const pool = getPool();
+      for (const log of logs) {
+        await pool.query(
+          `INSERT INTO logs_importacao (
+            id, dataHora, nomeArquivo, usuario, registrosLidos, registrosNovos, registrosAtualizados, registrosSemAlteracao, errosEncontrados, detalhesErros, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            dataHora = VALUES(dataHora),
+            nomeArquivo = VALUES(nomeArquivo),
+            usuario = VALUES(usuario),
+            registrosLidos = VALUES(registrosLidos),
+            registrosNovos = VALUES(registrosNovos),
+            registrosAtualizados = VALUES(registrosAtualizados),
+            registrosSemAlteracao = VALUES(registrosSemAlteracao),
+            errosEncontrados = VALUES(errosEncontrados),
+            detalhesErros = VALUES(detalhesErros),
+            status = VALUES(status)`,
+          [
+            log.id,
+            log.dataHora || '',
+            log.nomeArquivo || '',
+            log.usuario || '',
+            Number(log.registrosLidos || 0),
+            Number(log.registrosNovos || 0),
+            Number(log.registrosAtualizados || 0),
+            Number(log.registrosSemAlteracao || 0),
+            Number(log.errosEncontrados || 0),
+            JSON.stringify(log.detalhesErros || []),
+            log.status || 'CONCLUIDO',
+          ]
+        );
+      }
+      res.json({ success: true, count: logs.length, message: 'Logs de Importação sincronizados no MySQL Hostinger!' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ success: false, error: msg });
+    }
+  });
+
+  // MySQL Logs Sistema GET & SYNC
+  app.get('/api/mysql/logs-sistema', async (_req: Request, res: Response) => {
+    try {
+      const pool = getPool();
+      const [rows] = await pool.query('SELECT * FROM logs_sistema ORDER BY created_at DESC LIMIT 100');
+      res.json({ success: true, data: rows });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ success: false, error: msg });
+    }
+  });
+
+  app.post('/api/mysql/logs-sistema/sync', async (req: Request, res: Response) => {
+    try {
+      const { logs } = req.body;
+      if (!Array.isArray(logs)) {
+        res.status(400).json({ success: false, error: 'Array "logs" é obrigatório.' });
+        return;
+      }
+      await initMySQLTables();
+      const pool = getPool();
+      for (const log of logs) {
+        await pool.query(
+          `INSERT INTO logs_sistema (
+            id, dataHora, usuario, modulo, acao, descricao, ip, nivel
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            dataHora = VALUES(dataHora),
+            usuario = VALUES(usuario),
+            modulo = VALUES(modulo),
+            acao = VALUES(acao),
+            descricao = VALUES(descricao),
+            ip = VALUES(ip),
+            nivel = VALUES(nivel)`,
+          [
+            log.id,
+            log.dataHora || '',
+            log.usuario || '',
+            log.modulo || '',
+            log.acao || '',
+            log.descricao || '',
+            log.ip || '',
+            log.nivel || 'INFO',
+          ]
+        );
+      }
+      res.json({ success: true, count: logs.length, message: 'Logs do Sistema sincronizados no MySQL Hostinger!' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ success: false, error: msg });
+    }
+  });
+
 
   // Server metadata endpoint
   app.get('/api/info', (_req: Request, res: Response) => {

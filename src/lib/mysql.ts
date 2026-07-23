@@ -164,6 +164,32 @@ export async function initMySQLTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
+    // 7. Configuracoes Table
+    await p.query(`
+      CREATE TABLE IF NOT EXISTS configuracoes (
+        id VARCHAR(128) PRIMARY KEY DEFAULT 'geral',
+        dados JSON NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    // 8. Usuarios Sistema Table
+    await p.query(`
+      CREATE TABLE IF NOT EXISTS usuarios_sistema (
+        id VARCHAR(128) PRIMARY KEY,
+        nome VARCHAR(255) NOT NULL,
+        senha VARCHAR(255),
+        departamento VARCHAR(64),
+        permissao VARCHAR(64),
+        politicaAceita TINYINT(1) DEFAULT 0,
+        status VARCHAR(32) DEFAULT 'ATIVO',
+        cargo VARCHAR(255),
+        modulosPermitidos JSON,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
     return {
       success: true,
       message: 'Tabelas MySQL inicializadas/verificadas com sucesso no banco u609303672_pcp_virtude!',

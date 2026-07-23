@@ -23,7 +23,6 @@ import {
   Usuario,
   UsuarioSistema,
 } from '../types';
-import { firebaseSyncService } from './firebaseSyncService';
 import { mysqlSyncService } from './mysqlSyncService';
 
 const STORAGE_KEYS = {
@@ -42,7 +41,7 @@ const STORAGE_KEYS = {
 
 class StorageService {
   constructor() {
-    this.initFirebaseRealtimeSync();
+    this.initMysqlSync();
   }
 
   private dispatchSyncEvent(): void {
@@ -51,59 +50,53 @@ class StorageService {
     }
   }
 
-  private initFirebaseRealtimeSync(): void {
+  private async initMysqlSync(): Promise<void> {
     if (typeof window === 'undefined') return;
 
-    firebaseSyncService.initRealtimeListeners(
-      (remoteOps) => {
-        if (remoteOps && remoteOps.length > 0) {
-          localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(remoteOps));
-          this.dispatchSyncEvent();
-        }
-      },
-      (remoteClientes) => {
-        if (remoteClientes && remoteClientes.length > 0) {
-          localStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify(remoteClientes));
-          this.dispatchSyncEvent();
-        }
-      },
-      (remoteProdutos) => {
-        if (remoteProdutos && remoteProdutos.length > 0) {
-          localStorage.setItem(STORAGE_KEYS.PRODUTOS, JSON.stringify(remoteProdutos));
-          this.dispatchSyncEvent();
-        }
-      },
-      (remotePedidos) => {
-        if (remotePedidos && remotePedidos.length > 0) {
-          localStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(remotePedidos));
-          this.dispatchSyncEvent();
-        }
-      },
-      (remoteLogsImport) => {
-        if (remoteLogsImport && remoteLogsImport.length > 0) {
-          localStorage.setItem(STORAGE_KEYS.LOGS_IMPORTACAO, JSON.stringify(remoteLogsImport));
-          this.dispatchSyncEvent();
-        }
-      },
-      (remoteLogsSys) => {
-        if (remoteLogsSys && remoteLogsSys.length > 0) {
-          localStorage.setItem(STORAGE_KEYS.LOGS_SISTEMA, JSON.stringify(remoteLogsSys));
-          this.dispatchSyncEvent();
-        }
-      },
-      (remoteConfig) => {
-        if (remoteConfig && remoteConfig.empresa) {
-          localStorage.setItem(STORAGE_KEYS.CONFIGURACOES, JSON.stringify(remoteConfig));
-          this.dispatchSyncEvent();
-        }
-      },
-      (remoteUsers) => {
-        if (remoteUsers) {
-          localStorage.setItem(STORAGE_KEYS.USUARIOS_SISTEMA, JSON.stringify(remoteUsers));
-          this.dispatchSyncEvent();
-        }
+    try {
+      // 1. Initial table verification on MySQL
+      await mysqlSyncService.initTables();
+
+      // 2. Load latest OPs from MySQL
+      const remoteOps = await mysqlSyncService.fetchOps();
+      if (remoteOps && remoteOps.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(remoteOps));
       }
-    );
+
+      // 3. Load Pedidos
+      const remotePedidos = await mysqlSyncService.fetchPedidos();
+      if (remotePedidos && remotePedidos.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(remotePedidos));
+      }
+
+      // 4. Load Clientes
+      const remoteClientes = await mysqlSyncService.fetchClientes();
+      if (remoteClientes && remoteClientes.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify(remoteClientes));
+      }
+
+      // 5. Load Produtos
+      const remoteProdutos = await mysqlSyncService.fetchProdutos();
+      if (remoteProdutos && remoteProdutos.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.PRODUTOS, JSON.stringify(remoteProdutos));
+      }
+
+      // 6. Load Configuracoes
+      const remoteConfig = await mysqlSyncService.fetchConfiguracoes();
+      if (remoteConfig && remoteConfig.empresa) {
+        localStorage.setItem(STORAGE_KEYS.CONFIGURACOES, JSON.stringify(remoteConfig));
+      }
+
+      // 7. Load Usuarios Sistema
+      const remoteUsers = await mysqlSyncService.fetchUsuariosSistema();
+      if (remoteUsers && remoteUsers.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.USUARIOS_SISTEMA, JSON.stringify(remoteUsers));
+      }
+
+      this.dispatchSyncEvent();
+    } catch (err) {
+      console.warn('Conexão/Sincronização MySQL Hostinger em segundo plano:', err);
+    }
   }
 
 
@@ -129,7 +122,6 @@ class StorageService {
 
   public saveOps(ops: OrdemProducao[]): void {
     localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(ops));
-    firebaseSyncService.syncOpsToCloud(ops);
     mysqlSyncService.syncOpsToMysql(ops);
     this.dispatchSyncEvent();
   }
@@ -257,7 +249,6 @@ class StorageService {
 
   public savePedidos(pedidos: Pedido[]): void {
     localStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(pedidos));
-    firebaseSyncService.syncPedidosToCloud(pedidos);
     mysqlSyncService.syncPedidosToMysql(pedidos);
     this.dispatchSyncEvent();
   }
@@ -286,7 +277,6 @@ class StorageService {
 
   public saveClientes(clientes: Cliente[]): void {
     localStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify(clientes));
-    firebaseSyncService.syncClientesToCloud(clientes);
     mysqlSyncService.syncClientesToMysql(clientes);
     this.dispatchSyncEvent();
   }
@@ -315,7 +305,6 @@ class StorageService {
 
   public saveProdutos(produtos: Produto[]): void {
     localStorage.setItem(STORAGE_KEYS.PRODUTOS, JSON.stringify(produtos));
-    firebaseSyncService.syncProdutosToCloud(produtos);
     mysqlSyncService.syncProdutosToMysql(produtos);
     this.dispatchSyncEvent();
   }
@@ -339,7 +328,7 @@ class StorageService {
 
   public saveLogsImportacao(logs: LogImportacao[]): void {
     localStorage.setItem(STORAGE_KEYS.LOGS_IMPORTACAO, JSON.stringify(logs));
-    firebaseSyncService.syncLogsImportacaoToCloud(logs);
+    mysqlSyncService.syncLogsImportacaoToMysql(logs);
     this.dispatchSyncEvent();
   }
 
@@ -364,7 +353,7 @@ class StorageService {
 
   public saveLogsSistema(logs: LogSistema[]): void {
     localStorage.setItem(STORAGE_KEYS.LOGS_SISTEMA, JSON.stringify(logs));
-    firebaseSyncService.syncLogsSistemaToCloud(logs);
+    mysqlSyncService.syncLogsSistemaToMysql(logs);
     this.dispatchSyncEvent();
   }
 
@@ -406,7 +395,7 @@ class StorageService {
   public saveConfiguracoes(config: ConfiguracoesSistema): void {
     config.ultimaAtualizacao = new Date().toISOString();
     localStorage.setItem(STORAGE_KEYS.CONFIGURACOES, JSON.stringify(config));
-    firebaseSyncService.syncConfiguracoesToCloud(config);
+    mysqlSyncService.syncConfiguracoesToMysql(config);
     this.dispatchSyncEvent();
   }
 
@@ -599,7 +588,7 @@ class StorageService {
 
   public saveUsuariosSistema(usuarios: UsuarioSistema[]): void {
     localStorage.setItem(STORAGE_KEYS.USUARIOS_SISTEMA, JSON.stringify(usuarios));
-    firebaseSyncService.syncUsuariosSistemaToCloud(usuarios);
+    mysqlSyncService.syncUsuariosSistemaToMysql(usuarios);
     this.dispatchSyncEvent();
   }
 

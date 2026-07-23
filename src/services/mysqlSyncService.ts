@@ -1,4 +1,13 @@
-import { Cliente, OrdemProducao, Pedido, Produto } from '../types';
+import {
+  Cliente,
+  ConfiguracoesSistema,
+  LogImportacao,
+  LogSistema,
+  OrdemProducao,
+  Pedido,
+  Produto,
+  UsuarioSistema,
+} from '../types';
 
 export class MysqlSyncService {
   private isSyncing = false;
@@ -21,6 +30,8 @@ export class MysqlSyncService {
       return { success: false, error: String(err) };
     }
   }
+
+  // --- SYNC TO MYSQL ---
 
   public async syncOpsToMysql(ops: OrdemProducao[]) {
     if (this.isSyncing || !ops || ops.length === 0) return;
@@ -71,6 +82,126 @@ export class MysqlSyncService {
       });
     } catch (err) {
       console.warn('Erro ao sincronizar Produtos no MySQL Hostinger:', err);
+    }
+  }
+
+  public async syncConfiguracoesToMysql(config: ConfiguracoesSistema) {
+    if (this.isSyncing || !config) return;
+    try {
+      await fetch('/api/mysql/configuracoes/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ configuracoes: config }),
+      });
+    } catch (err) {
+      console.warn('Erro ao sincronizar Configurações no MySQL Hostinger:', err);
+    }
+  }
+
+  public async syncUsuariosSistemaToMysql(usuarios: UsuarioSistema[]) {
+    if (this.isSyncing || !usuarios || usuarios.length === 0) return;
+    try {
+      await fetch('/api/mysql/usuarios-sistema/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuarios }),
+      });
+    } catch (err) {
+      console.warn('Erro ao sincronizar Usuários no MySQL Hostinger:', err);
+    }
+  }
+
+  public async syncLogsImportacaoToMysql(logs: LogImportacao[]) {
+    if (this.isSyncing || !logs || logs.length === 0) return;
+    try {
+      await fetch('/api/mysql/logs-importacao/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logs }),
+      });
+    } catch (err) {
+      console.warn('Erro ao sincronizar Logs de Importação no MySQL Hostinger:', err);
+    }
+  }
+
+  public async syncLogsSistemaToMysql(logs: LogSistema[]) {
+    if (this.isSyncing || !logs || logs.length === 0) return;
+    try {
+      await fetch('/api/mysql/logs-sistema/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logs }),
+      });
+    } catch (err) {
+      console.warn('Erro ao sincronizar Logs de Sistema no MySQL Hostinger:', err);
+    }
+  }
+
+  // --- FETCH FROM MYSQL ---
+
+  public async fetchOps(): Promise<OrdemProducao[]> {
+    try {
+      const res = await fetch('/api/mysql/ops');
+      if (!res.ok) return [];
+      const json = await res.json();
+      return json.success ? json.data : [];
+    } catch {
+      return [];
+    }
+  }
+
+  public async fetchPedidos(): Promise<Pedido[]> {
+    try {
+      const res = await fetch('/api/mysql/pedidos');
+      if (!res.ok) return [];
+      const json = await res.json();
+      return json.success ? json.data : [];
+    } catch {
+      return [];
+    }
+  }
+
+  public async fetchClientes(): Promise<Cliente[]> {
+    try {
+      const res = await fetch('/api/mysql/clientes');
+      if (!res.ok) return [];
+      const json = await res.json();
+      return json.success ? json.data : [];
+    } catch {
+      return [];
+    }
+  }
+
+  public async fetchProdutos(): Promise<Produto[]> {
+    try {
+      const res = await fetch('/api/mysql/produtos');
+      if (!res.ok) return [];
+      const json = await res.json();
+      return json.success ? json.data : [];
+    } catch {
+      return [];
+    }
+  }
+
+  public async fetchConfiguracoes(): Promise<ConfiguracoesSistema | null> {
+    try {
+      const res = await fetch('/api/mysql/configuracoes');
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.success ? json.data : null;
+    } catch {
+      return null;
+    }
+  }
+
+  public async fetchUsuariosSistema(): Promise<UsuarioSistema[]> {
+    try {
+      const res = await fetch('/api/mysql/usuarios-sistema');
+      if (!res.ok) return [];
+      const json = await res.json();
+      return json.success ? json.data : [];
+    } catch {
+      return [];
     }
   }
 }
