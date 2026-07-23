@@ -57,7 +57,14 @@ export const ImportadorExcelView: React.FC<ImportadorExcelViewProps> = ({
     }
   };
 
+  const usuarioLogado = storageService.getUsuarioSessao() || storageService.getUsuario();
+  const podeEditar = usuarioLogado.permissao === 'EDITAR' && usuarioLogado.perfil !== 'VISUALIZADOR';
+
   const executarImportacao = async () => {
+    if (!podeEditar) {
+      alert('Acesso negado: Seu usuário possui permissão de Somente Leitura.');
+      return;
+    }
     if (!arquivoSelecionado) return;
 
     setCarregando(true);
@@ -79,6 +86,13 @@ export const ImportadorExcelView: React.FC<ImportadorExcelViewProps> = ({
   return (
     <div className="space-y-6 pb-8">
       {/* Header */}
+      {!podeEditar && (
+        <div className="p-4 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-2xl text-xs font-semibold flex items-center space-x-2">
+          <AlertCircle className="w-5 h-5 shrink-0 text-amber-400" />
+          <span>Acesso Restrito: Seu usuário está configurado como <strong>Somente Leitura</strong>. O envio e processamento de planilhas estão desabilitados.</span>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg">
         <div>
           <h2 className="text-xl font-bold text-slate-100 flex items-center space-x-2">

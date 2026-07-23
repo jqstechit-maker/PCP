@@ -44,7 +44,14 @@ export const ConfiguracoesView: React.FC = () => {
   const [adminUserSenha, setAdminUserSenha] = useState('');
   const [erroAuthAdmin, setErroAuthAdmin] = useState('');
 
+  const usuarioLogado = storageService.getUsuarioSessao() || storageService.getUsuario();
+  const podeEditar = usuarioLogado.permissao === 'EDITAR' && usuarioLogado.perfil !== 'VISUALIZADOR';
+
   const handleSalvarConfig = () => {
+    if (!podeEditar) {
+      alert('Acesso negado: Seu usuário possui permissão apenas de Somente Leitura.');
+      return;
+    }
     const novaConfig = {
       empresa,
       parametros,
@@ -65,6 +72,10 @@ export const ConfiguracoesView: React.FC = () => {
 
 
   const handleAbrirModalResetar = () => {
+    if (!podeEditar) {
+      alert('Acesso negado: Seu usuário possui permissão apenas de Somente Leitura.');
+      return;
+    }
     setAdminUserLogin('');
     setAdminUserSenha('');
     setErroAuthAdmin('');

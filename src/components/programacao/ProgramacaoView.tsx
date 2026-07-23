@@ -27,6 +27,9 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
 }) => {
   const [ops, setOps] = useState<OrdemProducao[]>(() => storageService.getOps());
 
+  const usuarioLogado = storageService.getUsuarioSessao() || storageService.getUsuario();
+  const podeEditar = usuarioLogado.permissao === 'EDITAR' && usuarioLogado.perfil !== 'VISUALIZADOR';
+
   // Filter States
   const [statusFiltro, setStatusFiltro] = useState<string>('TODOS');
   const [clienteFiltro, setClienteFiltro] = useState<string>('TODOS');
@@ -229,13 +232,19 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
             <span>Exportar PDF</span>
           </button>
 
-          <button
-            onClick={onAbrirImportador}
-            className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-xs transition-colors shadow-xs"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Importar Planilha</span>
-          </button>
+          {podeEditar ? (
+            <button
+              onClick={onAbrirImportador}
+              className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-xs transition-colors shadow-xs"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Importar Planilha</span>
+            </button>
+          ) : (
+            <span className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold flex items-center space-x-1.5">
+              <span>Modo Somente Leitura</span>
+            </span>
+          )}
         </div>
       </div>
 
@@ -411,13 +420,19 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
                         {op.dataProgramada}
                       </td>
                       <td className="p-3 text-right">
-                        <button
-                          onClick={() => abrirModalEditar(op)}
-                          className="p-1.5 bg-slate-100 hover:bg-blue-600 hover:text-white dark:bg-slate-800 dark:hover:bg-blue-600 text-slate-600 dark:text-slate-300 rounded-lg transition-colors"
-                          title="Atualizar Status / OP"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
+                        {podeEditar ? (
+                          <button
+                            onClick={() => abrirModalEditar(op)}
+                            className="p-1.5 bg-slate-100 hover:bg-blue-600 hover:text-white dark:bg-slate-800 dark:hover:bg-blue-600 text-slate-600 dark:text-slate-300 rounded-lg transition-colors"
+                            title="Atualizar Status / OP"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono italic">
+                            Somente leitura
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );

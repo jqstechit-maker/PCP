@@ -20,6 +20,9 @@ export const ProducaoKanbanView: React.FC<ProducaoKanbanViewProps> = ({
 }) => {
   const [ops, setOps] = useState<OrdemProducao[]>(() => storageService.getOps());
 
+  const usuarioLogado = storageService.getUsuarioSessao() || storageService.getUsuario();
+  const podeEditar = usuarioLogado.permissao === 'EDITAR' && usuarioLogado.perfil !== 'VISUALIZADOR';
+
   const recarregar = () => {
     setOps(storageService.getOps());
   };
@@ -174,7 +177,7 @@ export const ProducaoKanbanView: React.FC<ProducaoKanbanViewProps> = ({
                           </div>
                         </div>
 
-                        {col.proximaEtapa && (
+                        {col.proximaEtapa && podeEditar && (
                           <button
                             onClick={() => handleAvancar(op.id, col.proximaEtapa!)}
                             className="w-full mt-2 py-1.5 bg-amber-500/10 hover:bg-amber-500 hover:text-slate-950 text-amber-400 text-[10px] font-bold rounded-lg border border-amber-500/20 flex items-center justify-center space-x-1 transition-all"

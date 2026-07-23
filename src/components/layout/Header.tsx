@@ -200,7 +200,14 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
             <div className="hidden lg:block text-left">
-              <p className="text-xs font-semibold leading-tight">{usuario.nome}</p>
+              <div className="flex items-center space-x-1">
+                <p className="text-xs font-semibold leading-tight">{usuario.nome}</p>
+                {(usuario.permissao === 'VISUALIZACAO' || usuario.perfil === 'VISUALIZADOR') && (
+                  <span className="px-1.5 py-0.2 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded text-[9px] font-bold">
+                    Só Visualização
+                  </span>
+                )}
+              </div>
               <p className="text-[10px] text-slate-400 leading-tight font-medium">
                 {usuario.cargo}
               </p>

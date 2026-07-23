@@ -120,7 +120,20 @@ class StorageService {
     }
   }
 
+  public podeEditar(): boolean {
+    const usuario = this.getUsuarioSessao() || this.getUsuario();
+    if (!usuario) return true;
+    if (usuario.permissao === 'VISUALIZACAO' || usuario.perfil === 'VISUALIZADOR') {
+      return false;
+    }
+    return true;
+  }
+
   public saveOps(ops: OrdemProducao[]): void {
+    if (!this.podeEditar()) {
+      console.warn('Operação bloqueada: Usuário com permissão de Somente Leitura.');
+      return;
+    }
     localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(ops));
     mysqlSyncService.syncOpsToMysql(ops);
     this.dispatchSyncEvent();
@@ -248,6 +261,10 @@ class StorageService {
   }
 
   public savePedidos(pedidos: Pedido[]): void {
+    if (!this.podeEditar()) {
+      console.warn('Operação bloqueada: Usuário com permissão de Somente Leitura.');
+      return;
+    }
     localStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(pedidos));
     mysqlSyncService.syncPedidosToMysql(pedidos);
     this.dispatchSyncEvent();
@@ -276,6 +293,10 @@ class StorageService {
   }
 
   public saveClientes(clientes: Cliente[]): void {
+    if (!this.podeEditar()) {
+      console.warn('Operação bloqueada: Usuário com permissão de Somente Leitura.');
+      return;
+    }
     localStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify(clientes));
     mysqlSyncService.syncClientesToMysql(clientes);
     this.dispatchSyncEvent();
@@ -304,6 +325,10 @@ class StorageService {
   }
 
   public saveProdutos(produtos: Produto[]): void {
+    if (!this.podeEditar()) {
+      console.warn('Operação bloqueada: Usuário com permissão de Somente Leitura.');
+      return;
+    }
     localStorage.setItem(STORAGE_KEYS.PRODUTOS, JSON.stringify(produtos));
     mysqlSyncService.syncProdutosToMysql(produtos);
     this.dispatchSyncEvent();
@@ -393,6 +418,10 @@ class StorageService {
   }
 
   public saveConfiguracoes(config: ConfiguracoesSistema): void {
+    if (!this.podeEditar()) {
+      console.warn('Operação bloqueada: Usuário com permissão de Somente Leitura.');
+      return;
+    }
     config.ultimaAtualizacao = new Date().toISOString();
     localStorage.setItem(STORAGE_KEYS.CONFIGURACOES, JSON.stringify(config));
     mysqlSyncService.syncConfiguracoesToMysql(config);
@@ -587,6 +616,10 @@ class StorageService {
   }
 
   public saveUsuariosSistema(usuarios: UsuarioSistema[]): void {
+    if (!this.podeEditar()) {
+      console.warn('Operação bloqueada: Usuário com permissão de Somente Leitura.');
+      return;
+    }
     localStorage.setItem(STORAGE_KEYS.USUARIOS_SISTEMA, JSON.stringify(usuarios));
     mysqlSyncService.syncUsuariosSistemaToMysql(usuarios);
     this.dispatchSyncEvent();
@@ -679,6 +712,9 @@ class StorageService {
     qtdProduzidaAdicional?: number,
     observacoes?: string
   ): OrdemProducao {
+    if (!this.podeEditar()) {
+      throw new Error('Permissão negada: Usuário com perfil de Somente Leitura.');
+    }
     const ops = this.getOps();
     const index = ops.findIndex((o) => o.id === opId);
     if (index === -1) throw new Error('Ordem de Produção não encontrada.');
@@ -724,6 +760,10 @@ class StorageService {
 
   // --- Reset to Initial State ---
   public resetarBanco(): void {
+    if (!this.podeEditar()) {
+      console.warn('Operação bloqueada: Usuário com permissão de Somente Leitura.');
+      return;
+    }
     localStorage.removeItem(STORAGE_KEYS.OPS);
     localStorage.removeItem(STORAGE_KEYS.PEDIDOS);
     localStorage.removeItem(STORAGE_KEYS.CLIENTES);

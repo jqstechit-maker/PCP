@@ -35,10 +35,18 @@ export const GestaoUsuariosView: React.FC = () => {
   const [mensagemErro, setMensagemErro] = useState('');
   const [filtroDepto, setFiltroDepto] = useState<string>('TODOS');
 
+  const usuarioLogado = storageService.getUsuarioSessao() || storageService.getUsuario();
+  const podeEditar = usuarioLogado.permissao === 'EDITAR' && usuarioLogado.perfil !== 'VISUALIZADOR';
+
   const handleCriarUsuario = (e: React.FormEvent) => {
     e.preventDefault();
     setMensagemErro('');
     setMensagemSucesso('');
+
+    if (!podeEditar) {
+      setMensagemErro('Seu usuário possui permissão apenas de Somente Leitura.');
+      return;
+    }
 
     if (!nome.trim()) {
       setMensagemErro('Por favor, informe o Nome Completo do usuário.');
@@ -89,6 +97,10 @@ export const GestaoUsuariosView: React.FC = () => {
   };
 
   const handleAlternarPermissao = (id: string) => {
+    if (!podeEditar) {
+      alert('Seu usuário possui permissão de Somente Leitura.');
+      return;
+    }
     const listaAtualizada = usuarios.map((u) => {
       if (u.id === id) {
         const novaPermissao: RegraAcesso =
@@ -103,6 +115,10 @@ export const GestaoUsuariosView: React.FC = () => {
   };
 
   const handleExcluirUsuario = (id: string, nomeUsuario: string) => {
+    if (!podeEditar) {
+      alert('Seu usuário possui permissão de Somente Leitura.');
+      return;
+    }
     if (confirm(`Tem certeza que deseja remover o login de "${nomeUsuario}"?`)) {
       const listaAtualizada = usuarios.filter((u) => u.id !== id);
       setUsuarios(listaAtualizada);
@@ -446,21 +462,27 @@ export const GestaoUsuariosView: React.FC = () => {
                       </td>
 
                       <td className="p-3 text-right space-x-1">
-                        <button
-                          onClick={() => handleAlternarPermissao(u.id)}
-                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium transition-colors"
-                          title="Alternar entre Editar e Só Visualização"
-                        >
-                          Trocar Regra
-                        </button>
+                        {podeEditar ? (
+                          <>
+                            <button
+                              onClick={() => handleAlternarPermissao(u.id)}
+                              className="px-2 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium transition-colors"
+                              title="Alternar entre Editar e Só Visualização"
+                            >
+                              Trocar Regra
+                            </button>
 
-                        <button
-                          onClick={() => handleExcluirUsuario(u.id, u.nome)}
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded transition-colors"
-                          title="Remover Login"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                            <button
+                              onClick={() => handleExcluirUsuario(u.id, u.nome)}
+                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded transition-colors"
+                              title="Remover Login"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 italic">Protegido</span>
+                        )}
                       </td>
                     </tr>
                   ))
