@@ -128,15 +128,29 @@ export interface FiltrosProgramacao {
 export type GrupoUsuario = 'VENDAS' | 'PRODUCAO' | 'ADM' | 'QUALIDADE';
 export type RegraAcesso = 'VISUALIZACAO' | 'EDITAR';
 
+export type ModuloAtivo =
+  | 'dashboard'
+  | 'programacao'
+  | 'producao'
+  | 'pedidos'
+  | 'clientes'
+  | 'produtos'
+  | 'importador'
+  | 'relatorios'
+  | 'configuracoes'
+  | 'logs';
+
 export interface UsuarioSistema {
   id: string;
   nome: string;
   cargo?: string;
+  senha?: string;
   departamento: GrupoUsuario;
   permissao: RegraAcesso;
   politicaAceita: boolean;
   dataCriacao: string;
   status: 'ATIVO' | 'INATIVO';
+  modulosPermitidos?: ModuloAtivo[];
 }
 
 export interface Usuario {
@@ -146,4 +160,30 @@ export interface Usuario {
   cargo: string;
   perfil: 'PCP_ADMIN' | 'OPERADOR' | 'VISUALIZADOR';
   avatar?: string;
+  senha?: string;
+  departamento?: GrupoUsuario;
+  permissao?: RegraAcesso;
+  modulosPermitidos?: ModuloAtivo[];
 }
+
+export interface ConfiguracoesEmpresa {
+  nome: string;
+  cnpj: string;
+  cidadeUF: string;
+  telefone: string;
+  email: string;
+}
+
+export interface ParametrosIndustriais {
+  metaDiariaBags: number;
+  eficienciaAlvo: number;
+  oeeAlvo: number;
+  horasTurno: number;
+}
+
+export interface ConfiguracoesSistema {
+  empresa: ConfiguracoesEmpresa;
+  parametros: ParametrosIndustriais;
+  ultimaAtualizacao?: string;
+}
+

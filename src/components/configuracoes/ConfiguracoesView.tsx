@@ -20,22 +20,23 @@ import { storageService } from '../../services/storageService';
 export const ConfiguracoesView: React.FC = () => {
   const [abaAtiva, setAbaAtiva] = useState<'geral' | 'usuarios'>('geral');
 
-  const [empresa, setEmpresa] = useState({
-    nome: "VIRTUDE BIG BAG'S INDÚSTRIA E COMÉRCIO DE EMBALAGENS LTDA",
-    cnpj: '18.920.345/0001-88',
-    cidadeUF: 'Americana / SP',
-    telefone: '(19) 3465-9000',
-    email: 'contato@virtudebigbags.com.br',
-  });
-
-  const [parametros, setParametros] = useState({
-    metaDiariaBags: 1000,
-    eficienciaAlvo: 95.0,
-    oeeAlvo: 85.0,
-    horasTurno: 9,
-  });
+  const [config, setConfig] = useState(() => storageService.getConfiguracoes());
+  const [empresa, setEmpresa] = useState(config.empresa);
+  const [parametros, setParametros] = useState(config.parametros);
 
   const [salvoFeedback, setSalvoFeedback] = useState(false);
+
+  // Sync state when external sync occurs
+  React.useEffect(() => {
+    const handleSync = () => {
+      const updated = storageService.getConfiguracoes();
+      setConfig(updated);
+      setEmpresa(updated.empresa);
+      setParametros(updated.parametros);
+    };
+    window.addEventListener('virtude_data_synced', handleSync);
+    return () => window.removeEventListener('virtude_data_synced', handleSync);
+  }, []);
 
   // Modal Auth Admin for Restore
   const [modalAuthAdminAberto, setModalAuthAdminAberto] = useState(false);
@@ -44,15 +45,24 @@ export const ConfiguracoesView: React.FC = () => {
   const [erroAuthAdmin, setErroAuthAdmin] = useState('');
 
   const handleSalvarConfig = () => {
+    const novaConfig = {
+      empresa,
+      parametros,
+      ultimaAtualizacao: new Date().toISOString(),
+    };
+    storageService.saveConfiguracoes(novaConfig);
+    setConfig(novaConfig);
+
     storageService.addLogSistema(
       'CONFIGURAÇÕES',
       'ATUALIZACAO_PARAMETROS',
-      'Parâmetros industriais da fábrica e dados da empresa atualizados com sucesso.',
+      'Parâmetros industriais da fábrica e dados da empresa atualizados e sincronizados na nuvem com sucesso.',
       'SUCCESS'
     );
     setSalvoFeedback(true);
     setTimeout(() => setSalvoFeedback(false), 3000);
   };
+
 
   const handleAbrirModalResetar = () => {
     setAdminUserLogin('');

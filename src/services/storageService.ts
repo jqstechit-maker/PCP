@@ -1,5 +1,6 @@
 import {
   INITIAL_CLIENTES,
+  INITIAL_CONFIGURACOES,
   INITIAL_LOGS_IMPORTACAO,
   INITIAL_LOGS_SISTEMA,
   INITIAL_OPS,
@@ -10,9 +11,11 @@ import {
 } from '../data/mockData';
 import {
   Cliente,
+  ConfiguracoesSistema,
   IndicadoresKpi,
   LogImportacao,
   LogSistema,
+  ModuloAtivo,
   OrdemProducao,
   Pedido,
   Produto,
@@ -31,7 +34,9 @@ const STORAGE_KEYS = {
   LOGS_IMPORTACAO: 'virtude_logs_imp_v2',
   LOGS_SISTEMA: 'virtude_logs_sys_v2',
   USUARIO: 'virtude_usuario_v1',
+  USUARIO_SESSAO: 'virtude_usuario_sessao_v2',
   USUARIOS_SISTEMA: 'virtude_usuarios_sistema_v2',
+  CONFIGURACOES: 'virtude_configuracoes_v2',
   TEMA: 'virtude_tema_v1',
 };
 
@@ -85,9 +90,22 @@ class StorageService {
           localStorage.setItem(STORAGE_KEYS.LOGS_SISTEMA, JSON.stringify(remoteLogsSys));
           this.dispatchSyncEvent();
         }
+      },
+      (remoteConfig) => {
+        if (remoteConfig && remoteConfig.empresa) {
+          localStorage.setItem(STORAGE_KEYS.CONFIGURACOES, JSON.stringify(remoteConfig));
+          this.dispatchSyncEvent();
+        }
+      },
+      (remoteUsers) => {
+        if (remoteUsers) {
+          localStorage.setItem(STORAGE_KEYS.USUARIOS_SISTEMA, JSON.stringify(remoteUsers));
+          this.dispatchSyncEvent();
+        }
       }
     );
   }
+
 
   // --- Initialization & Storage Getters ---
   public getOps(): OrdemProducao[] {
@@ -372,7 +390,170 @@ class StorageService {
     this.saveLogsSistema(logs);
   }
 
+  public getConfiguracoes(): ConfiguracoesSistema {
+    const raw = localStorage.getItem(STORAGE_KEYS.CONFIGURACOES);
+    if (!raw) {
+      this.saveConfiguracoes(INITIAL_CONFIGURACOES);
+      return INITIAL_CONFIGURACOES;
+    }
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return INITIAL_CONFIGURACOES;
+    }
+  }
+
+  public saveConfiguracoes(config: ConfiguracoesSistema): void {
+    config.ultimaAtualizacao = new Date().toISOString();
+    localStorage.setItem(STORAGE_KEYS.CONFIGURACOES, JSON.stringify(config));
+    firebaseSyncService.syncConfiguracoesToCloud(config);
+    this.dispatchSyncEvent();
+  }
+
+  public getUsuarioSessao(): Usuario | null {
+    const raw = localStorage.getItem(STORAGE_KEYS.USUARIO_SESSAO);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  public saveUsuarioSessao(usuario: Usuario | null): void {
+    if (!usuario) {
+      localStorage.removeItem(STORAGE_KEYS.USUARIO_SESSAO);
+    } else {
+      localStorage.setItem(STORAGE_KEYS.USUARIO_SESSAO, JSON.stringify(usuario));
+    }
+    this.dispatchSyncEvent();
+  }
+
+  public fazerLogout(): void {
+    const usuarioLogado = this.getUsuarioSessao();
+    this.addLogSistema(
+      'AUTENTICACAO',
+      'LOGOUT',
+      `Sessão encerrada pelo usuário ${usuarioLogado?.nome || 'Sistema'}.`,
+      'INFO'
+    );
+    this.saveUsuarioSessao(null);
+  }
+
+  public fazerLogin(
+    loginInput: string,
+    senhaInput: string
+  ): { sucesso: boolean; usuario?: Usuario; erro?: string } {
+    const cleanLogin = loginInput.trim().toLowerCase();
+    const cleanSenha = senhaInput.trim();
+
+    if (!cleanLogin || !cleanSenha) {
+      return { sucesso: false, erro: 'Informe o Usuário e a Senha.' };
+    }
+
+    // 1. Admin Master Check
+    const isMasterAdmin =
+      cleanLogin === 'admin' ||
+      cleanLogin === 'jacques' ||
+      cleanLogin === 'jacques silva' ||
+      cleanLogin.includes('virtude');
+
+    const isMasterPassword = [
+      'Virtude@2026',
+      'admin',
+      'admin123',
+      '123456',
+      'pcp2026',
+    ].includes(cleanSenha);
+
+    if (isMasterAdmin && isMasterPassword) {
+      const userAdmin: Usuario = { ...INITIAL_USUARIO };
+      this.saveUsuarioSessao(userAdmin);
+      this.addLogSistema(
+        'AUTENTICACAO',
+        'LOGIN_SUCESSO',
+        `Login realizado com sucesso como Administrador PCP (${userAdmin.nome}).`,
+        'SUCCESS'
+      );
+      return { sucesso: true, usuario: userAdmin };
+    }
+
+    // 2. System Users list match
+    const usuariosSistema = this.getUsuariosSistema();
+    const matchedUser = usuariosSistema.find(
+      (u) =>
+        u.status === 'ATIVO' &&
+        (u.nome.toLowerCase() === cleanLogin ||
+          u.id.toLowerCase() === cleanLogin ||
+          u.nome.toLowerCase().includes(cleanLogin))
+    );
+
+    if (matchedUser) {
+      const senhaValida = matchedUser.senha
+        ? matchedUser.senha === cleanSenha
+        : cleanSenha.length >= 4;
+
+      if (senhaValida) {
+        let modulosPermitidos = matchedUser.modulosPermitidos;
+        if (!modulosPermitidos || modulosPermitidos.length === 0) {
+          if (matchedUser.departamento === 'ADM') {
+            modulosPermitidos = [
+              'dashboard',
+              'programacao',
+              'producao',
+              'pedidos',
+              'clientes',
+              'produtos',
+              'importador',
+              'relatorios',
+              'configuracoes',
+              'logs',
+            ];
+          } else if (matchedUser.departamento === 'VENDAS') {
+            modulosPermitidos = ['dashboard', 'pedidos', 'clientes', 'programacao'];
+          } else if (matchedUser.departamento === 'PRODUCAO') {
+            modulosPermitidos = ['dashboard', 'producao', 'programacao', 'produtos'];
+          } else if (matchedUser.departamento === 'QUALIDADE') {
+            modulosPermitidos = ['dashboard', 'producao', 'relatorios', 'produtos'];
+          } else {
+            modulosPermitidos = ['dashboard', 'programacao', 'producao'];
+          }
+        }
+
+        const userLogado: Usuario = {
+          id: matchedUser.id,
+          nome: matchedUser.nome,
+          email: `${matchedUser.id}@virtudebigbags.com.br`,
+          cargo: matchedUser.cargo || `${matchedUser.departamento} - ${matchedUser.permissao}`,
+          perfil: matchedUser.departamento === 'ADM' ? 'PCP_ADMIN' : 'OPERADOR',
+          departamento: matchedUser.departamento,
+          permissao: matchedUser.permissao,
+          modulosPermitidos,
+        };
+
+        this.saveUsuarioSessao(userLogado);
+        this.addLogSistema(
+          'AUTENTICACAO',
+          'LOGIN_SUCESSO',
+          `Login do usuário ${matchedUser.nome} (${matchedUser.departamento}) efetuado com sucesso.`,
+          'SUCCESS'
+        );
+        return { sucesso: true, usuario: userLogado };
+      } else {
+        return { sucesso: false, erro: 'Senha incorreta. Verifique suas credenciais.' };
+      }
+    }
+
+    return {
+      sucesso: false,
+      erro: 'Usuário não encontrado ou inativo no sistema. Verifique o nome digitado.',
+    };
+  }
+
   public getUsuario(): Usuario {
+    const sessao = this.getUsuarioSessao();
+    if (sessao) return sessao;
+
     const raw = localStorage.getItem(STORAGE_KEYS.USUARIO);
     if (!raw) {
       this.saveUsuario(INITIAL_USUARIO);
@@ -418,7 +599,10 @@ class StorageService {
 
   public saveUsuariosSistema(usuarios: UsuarioSistema[]): void {
     localStorage.setItem(STORAGE_KEYS.USUARIOS_SISTEMA, JSON.stringify(usuarios));
+    firebaseSyncService.syncUsuariosSistemaToCloud(usuarios);
+    this.dispatchSyncEvent();
   }
+
 
   public getTema(): 'dark' | 'light' {
     const raw = localStorage.getItem(STORAGE_KEYS.TEMA);

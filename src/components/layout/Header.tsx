@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Download,
   FileSpreadsheet,
+  LogOut,
   Moon,
   Search,
   Sun,
@@ -19,6 +20,7 @@ interface HeaderProps {
   onAlternarTema: () => void;
   onAbrirImportador: () => void;
   onAbrirPerfil: () => void;
+  onLogout?: () => void;
   buscaGlobal: string;
   onBuscaChange: (val: string) => void;
 }
@@ -29,9 +31,11 @@ export const Header: React.FC<HeaderProps> = ({
   onAlternarTema,
   onAbrirImportador,
   onAbrirPerfil,
+  onLogout,
   buscaGlobal,
   onBuscaChange,
 }) => {
+
   const [notificacoesAbertas, setNotificacoesAbertas] = useState(false);
   const kpis = storageService.calcularKpis();
 
@@ -175,34 +179,47 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* User Profile Info */}
-        <button
-          onClick={onAbrirPerfil}
-          className={`flex items-center space-x-2.5 pl-3 border-l p-1.5 rounded-lg transition-colors ${
-            tema === 'light'
-              ? 'border-slate-200 hover:bg-slate-100'
-              : 'border-slate-800 hover:bg-slate-800'
-          }`}
-        >
-          {usuario.avatar ? (
-            <img
-              src={usuario.avatar}
-              alt={usuario.nome}
-              className="w-7 h-7 rounded-full object-cover border border-slate-300 dark:border-slate-700"
-            />
-          ) : (
-            <div className="w-7 h-7 bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 rounded-full flex items-center justify-center font-bold text-xs">
-              <User className="w-4 h-4" />
+        <div className="flex items-center space-x-1 pl-3 border-l border-slate-200 dark:border-slate-800">
+          <button
+            onClick={onAbrirPerfil}
+            className={`flex items-center space-x-2.5 p-1.5 rounded-lg transition-colors ${
+              tema === 'light'
+                ? 'hover:bg-slate-100'
+                : 'hover:bg-slate-800'
+            }`}
+          >
+            {usuario.avatar ? (
+              <img
+                src={usuario.avatar}
+                alt={usuario.nome}
+                className="w-7 h-7 rounded-full object-cover border border-slate-300 dark:border-slate-700"
+              />
+            ) : (
+              <div className="w-7 h-7 bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 rounded-full flex items-center justify-center font-bold text-xs">
+                <User className="w-4 h-4" />
+              </div>
+            )}
+            <div className="hidden lg:block text-left">
+              <p className="text-xs font-semibold leading-tight">{usuario.nome}</p>
+              <p className="text-[10px] text-slate-400 leading-tight font-medium">
+                {usuario.cargo}
+              </p>
             </div>
+          </button>
+
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              title="Sair do Sistema (Logout)"
+              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors ml-1"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           )}
-          <div className="hidden lg:block text-left">
-            <p className="text-xs font-semibold leading-tight">{usuario.nome}</p>
-            <p className="text-[10px] text-slate-400 leading-tight font-medium">
-              {usuario.cargo}
-            </p>
-          </div>
-        </button>
+        </div>
       </div>
     </header>
   );
 };
+
 

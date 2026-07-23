@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { LoginScreen } from './components/auth/LoginScreen';
 import { LoginModal } from './components/auth/LoginModal';
 import { ClientesView } from './components/clientes/ClientesView';
 import { ConfiguracoesView } from './components/configuracoes/ConfiguracoesView';
@@ -16,12 +17,30 @@ import { storageService } from './services/storageService';
 import { StatusProducao, Usuario } from './types';
 
 export default function App() {
+  const [usuarioSessao, setUsuarioSessao] = useState<Usuario | null>(() =>
+    storageService.getUsuarioSessao()
+  );
   const [moduloAtivo, setModuloAtivo] = useState<ModuloAtivo>('dashboard');
   const [sidebarRecolhida, setSidebarRecolhida] = useState(false);
   const [tema, setTema] = useState<'dark' | 'light'>(() => storageService.getTema());
-  const [usuario, setUsuario] = useState<Usuario>(() => storageService.getUsuario());
+  const [usuario, setUsuario] = useState<Usuario>(
+    () => usuarioSessao || storageService.getUsuario()
+  );
   const [buscaGlobal, setBuscaGlobal] = useState('');
   const [modalPerfilAberto, setModalPerfilAberto] = useState(false);
+
+  // Sync state on remote real-time updates
+  useEffect(() => {
+    const handleSync = () => {
+      const sessaoAtual = storageService.getUsuarioSessao();
+      if (sessaoAtual) {
+        setUsuarioSessao(sessaoAtual);
+        setUsuario(sessaoAtual);
+      }
+    };
+    window.addEventListener('virtude_data_synced', handleSync);
+    return () => window.removeEventListener('virtude_data_synced', handleSync);
+  }, []);
 
   // Sync theme with DOM root class
   useEffect(() => {
@@ -35,6 +54,24 @@ export default function App() {
   const handleAvancarStatusOp = (opId: string, novoStatus: StatusProducao) => {
     storageService.atualizarStatusOp(opId, novoStatus);
   };
+
+  const handleLogout = () => {
+    storageService.fazerLogout();
+    setUsuarioSessao(null);
+  };
+
+  // Login Screen Gate
+  if (!usuarioSessao) {
+    return (
+      <LoginScreen
+        tema={tema}
+        onLoginSucesso={(usr) => {
+          setUsuarioSessao(usr);
+          setUsuario(usr);
+        }}
+      />
+    );
+  }
 
   return (
     <div
@@ -51,6 +88,7 @@ export default function App() {
         onAlternarTema={handleAlternarTema}
         onAbrirImportador={() => setModuloAtivo('importador')}
         onAbrirPerfil={() => setModalPerfilAberto(true)}
+        onLogout={handleLogout}
         buscaGlobal={buscaGlobal}
         onBuscaChange={(val) => {
           setBuscaGlobal(val);
@@ -126,10 +164,12 @@ export default function App() {
           onFechar={() => setModalPerfilAberto(false)}
           onAtualizarUsuario={(u) => {
             setUsuario(u);
-            storageService.saveUsuario(u);
+            setUsuarioSessao(u);
+            storageService.saveUsuarioSessao(u);
           }}
         />
       )}
     </div>
   );
 }
+

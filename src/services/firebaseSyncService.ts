@@ -3,16 +3,19 @@ import {
   doc,
   getDocs,
   onSnapshot,
+  setDoc,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import {
   Cliente,
+  ConfiguracoesSistema,
   LogImportacao,
   LogSistema,
   OrdemProducao,
   Pedido,
   Produto,
+  UsuarioSistema,
 } from '../types';
 
 type Listener = () => void;
@@ -39,7 +42,9 @@ class FirebaseSyncService {
     onProdutosChange: (produtos: Produto[]) => void,
     onPedidosChange: (pedidos: Pedido[]) => void,
     onLogsImportacaoChange?: (logs: LogImportacao[]) => void,
-    onLogsSistemaChange?: (logs: LogSistema[]) => void
+    onLogsSistemaChange?: (logs: LogSistema[]) => void,
+    onConfiguracoesChange?: (config: ConfiguracoesSistema) => void,
+    onUsuariosSistemaChange?: (usuarios: UsuarioSistema[]) => void
   ) {
     try {
       // 1. Listen to 'ops'
@@ -127,6 +132,36 @@ class FirebaseSyncService {
           this.notifyListeners();
         });
       }
+
+      // 7. Listen to 'configuracoes'
+      if (onConfiguracoesChange) {
+        onSnapshot(doc(db, 'configuracoes', 'geral'), (docSnap) => {
+          if (docSnap.exists() && !docSnap.metadata.hasPendingWrites) {
+            const data = docSnap.data() as ConfiguracoesSistema;
+            this.isSyncingFromRemote = true;
+            onConfiguracoesChange(data);
+            this.isSyncingFromRemote = false;
+            this.notifyListeners();
+          }
+        });
+      }
+
+      // 8. Listen to 'usuarios_sistema'
+      if (onUsuariosSistemaChange) {
+        onSnapshot(collection(db, 'usuarios_sistema'), (snapshot) => {
+          if (snapshot.metadata.hasPendingWrites) return;
+          const usuarios: UsuarioSistema[] = [];
+          snapshot.forEach((docSnap) => {
+            usuarios.push(docSnap.data() as UsuarioSistema);
+          });
+          if (usuarios.length > 0 || snapshot.empty) {
+            this.isSyncingFromRemote = true;
+            onUsuariosSistemaChange(usuarios);
+            this.isSyncingFromRemote = false;
+            this.notifyListeners();
+          }
+        });
+      }
     } catch (err) {
       console.warn('Firestore realtime subscription error:', err);
     }
@@ -137,7 +172,6 @@ class FirebaseSyncService {
     if (this.isSyncingFromRemote) return;
     try {
       const batch = writeBatch(db);
-      // Delete old if needed or overwrite all
       const existing = await getDocs(collection(db, 'ops'));
       existing.forEach((docSnap) => {
         batch.delete(docSnap.ref);
@@ -210,6 +244,34 @@ class FirebaseSyncService {
     }
   }
 
+  public async syncConfiguracoesToCloud(config: ConfiguracoesSistema) {
+    if (this.isSyncingFromRemote) return;
+    try {
+      await setDoc(doc(db, 'configuracoes', 'geral'), config);
+    } catch (err) {
+      console.error('Error syncing Configuracoes to cloud:', err);
+    }
+  }
+
+  public async syncUsuariosSistemaToCloud(usuarios: UsuarioSistema[]) {
+    if (this.isSyncingFromRemote) return;
+    try {
+      const batch = writeBatch(db);
+      const existing = await getDocs(collection(db, 'usuarios_sistema'));
+      existing.forEach((docSnap) => {
+        batch.delete(docSnap.ref);
+      });
+
+      usuarios.forEach((u) => {
+        const ref = doc(db, 'usuarios_sistema', u.id);
+        batch.set(ref, u);
+      });
+      await batch.commit();
+    } catch (err) {
+      console.error('Error syncing usuarios_sistema to cloud:', err);
+    }
+  }
+
   public async syncLogsImportacaoToCloud(logs: LogImportacao[]) {
     if (this.isSyncingFromRemote) return;
     try {
@@ -250,3 +312,4 @@ class FirebaseSyncService {
 }
 
 export const firebaseSyncService = new FirebaseSyncService();
+

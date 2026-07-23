@@ -111,6 +111,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
   ];
 
+  // Filter menu items by user permissions
+  const menuItemsPermitidos = menuItems.filter((item) => {
+    if (usuario.perfil === 'PCP_ADMIN' || usuario.departamento === 'ADM') return true;
+    if (usuario.modulosPermitidos && usuario.modulosPermitidos.length > 0) {
+      return usuario.modulosPermitidos.includes(item.id as ModuloAtivo);
+    }
+    // Default fallback rules if no specific list set
+    if (usuario.departamento === 'VENDAS') {
+      return ['dashboard', 'pedidos', 'clientes', 'programacao'].includes(item.id);
+    }
+    if (usuario.departamento === 'PRODUCAO') {
+      return ['dashboard', 'producao', 'programacao', 'produtos'].includes(item.id);
+    }
+    if (usuario.departamento === 'QUALIDADE') {
+      return ['dashboard', 'producao', 'relatorios', 'produtos'].includes(item.id);
+    }
+    return ['dashboard', 'programacao', 'producao'].includes(item.id);
+  });
+
   return (
     <aside
       className={`bg-[#0f172a] border-r border-slate-800/80 text-slate-300 flex flex-col transition-all duration-300 z-20 shrink-0 ${
@@ -154,9 +173,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Menu Links */}
       <nav className="flex-1 py-3 px-2.5 space-y-1 overflow-y-auto">
-        {menuItems.map((item) => {
+        {menuItemsPermitidos.map((item) => {
           const ItemIcon = item.icon;
           const isAtivo = moduloAtivo === item.id;
+
 
           return (
             <button
