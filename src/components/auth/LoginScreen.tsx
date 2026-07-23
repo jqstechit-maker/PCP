@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowRight, Factory, KeyRound, Lock, ShieldCheck, User } from 'lucide-react';
+import { AlertCircle, ArrowRight, Factory, Lock, ShieldCheck, User } from 'lucide-react';
 import React, { useState } from 'react';
 import { storageService } from '../../services/storageService';
 import { Usuario } from '../../types';
@@ -31,21 +31,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSucesso, tema =
     }, 300);
   };
 
-  const handleQuickLogin = (usuarioOuLogin: string, senhaPadrao: string) => {
-    setLoginInput(usuarioOuLogin);
-    setSenhaInput(senhaPadrao);
-    setErroMsg('');
-
-    const resultado = storageService.fazerLogin(usuarioOuLogin, senhaPadrao);
-    if (resultado.sucesso && resultado.usuario) {
-      onLoginSucesso(resultado.usuario);
-    } else {
-      setErroMsg(resultado.erro || 'Falha ao autenticar com o usuário selecionado.');
-    }
-  };
-
-  const usuariosCadastrados = storageService.getUsuariosSistema();
-
   return (
     <div
       className={`min-h-screen w-full flex items-center justify-center p-4 transition-colors ${
@@ -66,7 +51,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSucesso, tema =
           <div className="inline-flex items-center justify-center p-3.5 bg-blue-600/10 dark:bg-blue-500/20 border border-blue-500/30 rounded-2xl text-blue-500 dark:text-blue-400 mb-2 shadow-inner">
             <Factory className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase">
+          <h1 className="text-2xl font-black tracking-tight text-blue-600 dark:text-blue-500 uppercase">
             Virtude Big Bags
           </h1>
           <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 tracking-wider uppercase">
@@ -154,56 +139,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSucesso, tema =
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Quick Login Options for Convenience */}
-          <div className="mt-8 pt-5 border-t border-slate-200 dark:border-slate-800">
-            <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2.5 flex items-center space-x-1">
-              <KeyRound className="w-3.5 h-3.5 text-amber-500" />
-              <span>Acesso Rápido de Demonstração:</span>
-            </p>
-            <div className="space-y-1.5">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('Jacques Silva', 'Virtude@2026')}
-                className={`w-full p-2.5 rounded-xl text-left border transition-all text-xs flex items-center justify-between ${
-                  tema === 'light'
-                    ? 'bg-slate-50 hover:bg-slate-100 border-slate-200'
-                    : 'bg-slate-800/60 hover:bg-slate-800 border-slate-700'
-                }`}
-              >
-                <div>
-                  <p className="font-bold text-slate-800 dark:text-slate-100">Jacques Silva (Administrador Master)</p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400">Acesso Total (Todos os 10 Módulos)</p>
-                </div>
-                <span className="px-2 py-0.5 text-[10px] font-bold bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 rounded-md">
-                  ADM
-                </span>
-              </button>
-
-              {usuariosCadastrados.map((usr) => (
-                <button
-                  key={usr.id}
-                  type="button"
-                  onClick={() => handleQuickLogin(usr.nome, usr.senha || '123456')}
-                  className={`w-full p-2.5 rounded-xl text-left border transition-all text-xs flex items-center justify-between ${
-                    tema === 'light'
-                      ? 'bg-slate-50 hover:bg-slate-100 border-slate-200'
-                      : 'bg-slate-800/60 hover:bg-slate-800 border-slate-700'
-                  }`}
-                >
-                  <div>
-                    <p className="font-bold text-slate-800 dark:text-slate-100">{usr.nome}</p>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                      Dept: {usr.departamento} | Permissão: {usr.permissao}
-                    </p>
-                  </div>
-                  <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 rounded-md">
-                    {usr.departamento}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
