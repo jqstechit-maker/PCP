@@ -11,6 +11,7 @@ import {
 import React, { useState } from 'react';
 import { GestaoUsuariosView } from './GestaoUsuariosView';
 import { storageService } from '../../services/storageService';
+import { mysqlSyncService } from '../../services/mysqlSyncService';
 
 export const ConfiguracoesView: React.FC = () => {
   const [abaAtiva, setAbaAtiva] = useState<'geral' | 'usuarios'>('geral');
@@ -302,10 +303,55 @@ export const ConfiguracoesView: React.FC = () => {
             {/* Database & Backup Management */}
             <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-xs space-y-4">
               <div className="flex items-center space-x-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-                <Database className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <Database className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 tracking-wide">
-                  Gerenciamento e Backup do Banco de Dados Local
+                  Conexão Banco de Dados MySQL Hostinger (`u609303672_pcp_virtude`)
                 </h3>
+              </div>
+
+              <div className="bg-emerald-50 dark:bg-emerald-950/30 p-4 rounded-xl border border-emerald-200 dark:border-emerald-500/30 space-y-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <h4 className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                        Driver `mysql2` Ativo (Hostinger MySQL Remote)
+                      </h4>
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1">
+                      <strong>Banco:</strong> <code className="bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 rounded text-emerald-800 dark:text-emerald-200 font-mono">u609303672_pcp_virtude</code> | <strong>Usuário:</strong> <code className="bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 rounded text-emerald-800 dark:text-emerald-200 font-mono">u609303672_pcp_virtude</code>
+                    </p>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={async () => {
+                        const status = await mysqlSyncService.checkStatus();
+                        if (status.success) {
+                          alert(`Conexão OK! Mensagem: ${status.message}`);
+                        } else {
+                          alert(`Atenção na Conexão MySQL: ${status.error}\nVerifique se o acesso remoto MySQL no Hostinger está liberado.`);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs"
+                    >
+                      Testar Conexão MySQL
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const res = await mysqlSyncService.initTables();
+                        if (res.success) {
+                          alert(res.message);
+                        } else {
+                          alert(`Erro ao criar tabelas no MySQL: ${res.error}`);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-medium transition-all"
+                    >
+                      Criar/Verificar Tabelas
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800">

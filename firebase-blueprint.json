@@ -1,0 +1,43 @@
+{
+  "entities": {
+    "ops": {
+      "title": "Ordens de Produção",
+      "description": "Lista de OPs de fabricação PCP",
+      "properties": {
+        "opNumber": { "type": "string" },
+        "pedidoNumber": { "type": "string" },
+        "cliente": { "type": "string" },
+        "produto": { "type": "string" },
+        "quantidade": { "type": "number" },
+        "quantidadeProduzida": { "type": "number" },
+        "status": { "type": "string" },
+        "eficiencia": { "type": "number" }
+      }
+    },
+    "pedidos": {
+      "title": "Pedidos de Venda",
+      "description": "Lista de Pedidos comercial PCP",
+      "properties": {
+        "pedidoNumber": { "type": "string" },
+        "cliente": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    },
+    "clientes": {
+      "title": "Clientes",
+      "description": "Catálogo de clientes",
+      "properties": {
+        "nome": { "type": "string" },
+        "cnpj": { "type": "string" }
+      }
+    },
+    "produtos": {
+      "title": "Produtos",
+      "description": "Catálogo de produtos e modelos",
+      "properties": {
+        "nome": { "type": "string" },
+        "codigo": { "type": "string" }
+      }
+    }
+  }
+}

@@ -20,6 +20,8 @@ import {
   Usuario,
   UsuarioSistema,
 } from '../types';
+import { firebaseSyncService } from './firebaseSyncService';
+import { mysqlSyncService } from './mysqlSyncService';
 
 const STORAGE_KEYS = {
   OPS: 'virtude_ops_v2',
@@ -34,11 +36,63 @@ const STORAGE_KEYS = {
 };
 
 class StorageService {
+  constructor() {
+    this.initFirebaseRealtimeSync();
+  }
+
+  private dispatchSyncEvent(): void {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('virtude_data_synced'));
+    }
+  }
+
+  private initFirebaseRealtimeSync(): void {
+    if (typeof window === 'undefined') return;
+
+    firebaseSyncService.initRealtimeListeners(
+      (remoteOps) => {
+        if (remoteOps && remoteOps.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(remoteOps));
+          this.dispatchSyncEvent();
+        }
+      },
+      (remoteClientes) => {
+        if (remoteClientes && remoteClientes.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify(remoteClientes));
+          this.dispatchSyncEvent();
+        }
+      },
+      (remoteProdutos) => {
+        if (remoteProdutos && remoteProdutos.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.PRODUTOS, JSON.stringify(remoteProdutos));
+          this.dispatchSyncEvent();
+        }
+      },
+      (remotePedidos) => {
+        if (remotePedidos && remotePedidos.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(remotePedidos));
+          this.dispatchSyncEvent();
+        }
+      },
+      (remoteLogsImport) => {
+        if (remoteLogsImport && remoteLogsImport.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.LOGS_IMPORTACAO, JSON.stringify(remoteLogsImport));
+          this.dispatchSyncEvent();
+        }
+      },
+      (remoteLogsSys) => {
+        if (remoteLogsSys && remoteLogsSys.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.LOGS_SISTEMA, JSON.stringify(remoteLogsSys));
+          this.dispatchSyncEvent();
+        }
+      }
+    );
+  }
+
   // --- Initialization & Storage Getters ---
   public getOps(): OrdemProducao[] {
     const raw = localStorage.getItem(STORAGE_KEYS.OPS);
     if (!raw) {
-      this.saveOps([]);
       return [];
     }
     try {
@@ -47,17 +101,19 @@ class StorageService {
         (op) => !['op-101', 'op-102', 'op-103', 'op-104', 'op-105', 'op-106', 'op-107'].includes(op.id)
       );
       if (cleaned.length !== parsed.length) {
-        this.saveOps(cleaned);
+        localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(cleaned));
       }
       return cleaned;
     } catch {
-      this.saveOps([]);
       return [];
     }
   }
 
   public saveOps(ops: OrdemProducao[]): void {
     localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(ops));
+    firebaseSyncService.syncOpsToCloud(ops);
+    mysqlSyncService.syncOpsToMysql(ops);
+    this.dispatchSyncEvent();
   }
 
   public syncDerivadosComOps(): void {
@@ -183,6 +239,9 @@ class StorageService {
 
   public savePedidos(pedidos: Pedido[]): void {
     localStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(pedidos));
+    firebaseSyncService.syncPedidosToCloud(pedidos);
+    mysqlSyncService.syncPedidosToMysql(pedidos);
+    this.dispatchSyncEvent();
   }
 
   private getClientesDirect(): Cliente[] {
@@ -209,6 +268,9 @@ class StorageService {
 
   public saveClientes(clientes: Cliente[]): void {
     localStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify(clientes));
+    firebaseSyncService.syncClientesToCloud(clientes);
+    mysqlSyncService.syncClientesToMysql(clientes);
+    this.dispatchSyncEvent();
   }
 
   private getProdutosDirect(): Produto[] {
@@ -235,35 +297,37 @@ class StorageService {
 
   public saveProdutos(produtos: Produto[]): void {
     localStorage.setItem(STORAGE_KEYS.PRODUTOS, JSON.stringify(produtos));
+    firebaseSyncService.syncProdutosToCloud(produtos);
+    mysqlSyncService.syncProdutosToMysql(produtos);
+    this.dispatchSyncEvent();
   }
 
   public getLogsImportacao(): LogImportacao[] {
     const raw = localStorage.getItem(STORAGE_KEYS.LOGS_IMPORTACAO);
     if (!raw) {
-      this.saveLogsImportacao([]);
       return [];
     }
     try {
       const parsed: LogImportacao[] = JSON.parse(raw);
       const cleaned = parsed.filter((log) => !['imp-001', 'imp-002'].includes(log.id));
       if (cleaned.length !== parsed.length) {
-        this.saveLogsImportacao(cleaned);
+        localStorage.setItem(STORAGE_KEYS.LOGS_IMPORTACAO, JSON.stringify(cleaned));
       }
       return cleaned;
     } catch {
-      this.saveLogsImportacao([]);
       return [];
     }
   }
 
   public saveLogsImportacao(logs: LogImportacao[]): void {
     localStorage.setItem(STORAGE_KEYS.LOGS_IMPORTACAO, JSON.stringify(logs));
+    firebaseSyncService.syncLogsImportacaoToCloud(logs);
+    this.dispatchSyncEvent();
   }
 
   public getLogsSistema(): LogSistema[] {
     const raw = localStorage.getItem(STORAGE_KEYS.LOGS_SISTEMA);
     if (!raw) {
-      this.saveLogsSistema([]);
       return [];
     }
     try {
@@ -272,17 +336,18 @@ class StorageService {
         (log) => !['log-101', 'log-102', 'log-103', 'log-104'].includes(log.id)
       );
       if (cleaned.length !== parsed.length) {
-        this.saveLogsSistema(cleaned);
+        localStorage.setItem(STORAGE_KEYS.LOGS_SISTEMA, JSON.stringify(cleaned));
       }
       return cleaned;
     } catch {
-      this.saveLogsSistema([]);
       return [];
     }
   }
 
   public saveLogsSistema(logs: LogSistema[]): void {
     localStorage.setItem(STORAGE_KEYS.LOGS_SISTEMA, JSON.stringify(logs));
+    firebaseSyncService.syncLogsSistemaToCloud(logs);
+    this.dispatchSyncEvent();
   }
 
   public addLogSistema(
