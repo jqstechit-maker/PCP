@@ -11,7 +11,7 @@ import {
   Search,
 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
-import { excelService } from '../../services/excelService';
+import { excelService, formatarDataBR } from '../../services/excelService';
 import { pdfService } from '../../services/pdfService';
 import { storageService } from '../../services/storageService';
 import { OrdemProducao, StatusProducao } from '../../types';
@@ -417,7 +417,7 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
                         {op.status === 'FINALIZADO' ? 100 : op.eficiencia}%
                       </td>
                       <td className="p-3 font-mono text-slate-500 dark:text-slate-400">
-                        {op.dataProgramada}
+                        {formatarDataBR(op.dataProgramada)}
                       </td>
                       <td className="p-3 text-right">
                         {podeEditar ? (

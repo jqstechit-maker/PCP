@@ -121,7 +121,7 @@ class ExcelService {
       reader.onload = (e) => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
 
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
@@ -170,102 +170,253 @@ class ExcelService {
 
             const rowKeys = Object.keys(row);
 
-            const getCol = (possibleKeys: string[]): string => {
+            const getColVal = (possibleKeys: string[]): any => {
               // 1. Exact sanitized match
               for (const pk of possibleKeys) {
                 const pkSan = sanitizeKey(pk);
                 const foundKey = rowKeys.find((k) => sanitizeKey(k) === pkSan);
-                if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && String(row[foundKey]).trim() !== '') {
-                  return String(row[foundKey]).trim();
+                if (
+                  foundKey &&
+                  row[foundKey] !== undefined &&
+                  row[foundKey] !== null &&
+                  String(row[foundKey]).trim() !== ''
+                ) {
+                  return row[foundKey];
                 }
               }
 
-              // 2. Contains sanitized match
+              // 2. Contains sanitized match (only for keys with sufficient length)
               for (const pk of possibleKeys) {
                 const pkSan = sanitizeKey(pk);
-                if (!pkSan) continue;
+                if (!pkSan || pkSan.length < 4) continue;
                 const foundKey = rowKeys.find((k) => {
                   const kSan = sanitizeKey(k);
                   return kSan.length > 2 && (kSan.includes(pkSan) || pkSan.includes(kSan));
                 });
-                if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && String(row[foundKey]).trim() !== '') {
-                  return String(row[foundKey]).trim();
+                if (
+                  foundKey &&
+                  row[foundKey] !== undefined &&
+                  row[foundKey] !== null &&
+                  String(row[foundKey]).trim() !== ''
+                ) {
+                  return row[foundKey];
                 }
               }
 
               return '';
             };
 
+            const getCol = (possibleKeys: string[]): string => {
+              const val = getColVal(possibleKeys);
+              if (val === undefined || val === null) return '';
+              return String(val).trim();
+            };
+
             const opNumber = getCol([
-              'O.P', 'O.P.', 'OP', 'ORDEM', 'ORDEM_PRODUCAO', 'ORDEM DE PRODUCAO', 'ORDEM PRODUCAO',
-              'NUMERO_OP', 'NUMERO OP', 'N_OP', 'Nº OP', 'OP N°'
+              'O.P',
+              'O.P.',
+              'OP',
+              'ORDEM',
+              'ORDEM_PRODUCAO',
+              'ORDEM DE PRODUCAO',
+              'ORDEM PRODUCAO',
+              'NUMERO_OP',
+              'NUMERO OP',
+              'N_OP',
+              'Nº OP',
+              'OP N°',
             ]);
 
             const empresaIdRaw = getCol([
-              'ID.', 'ID', 'EMPRESA', 'EMPRESA_ID', 'SIGLA', 'EMPRESA L/V'
+              'ID. EMPRESA',
+              'ID. (EMPRESA L/V)',
+              'ID. (EMPRESA LV)',
+              'ID. EMPRESA L/V',
+              'ID.',
+              'ID',
+              'EMPRESA',
+              'EMPRESA_ID',
+              'SIGLA',
+              'EMPRESA L/V',
+              'EMPRESA LV',
             ]);
 
             const pedidoNumber = getCol([
-              'PEDIDO', 'NUMERO_PEDIDO', 'NUMERO PEDIDO', 'PED', 'N_PEDIDO',
-              'Nº PEDIDO', 'PEDIDO DE VENDA', 'PEDIDO_VENDA', 'PEDIDO VENDA'
+              'PEDIDO',
+              'NUMERO_PEDIDO',
+              'NUMERO PEDIDO',
+              'PED',
+              'N_PEDIDO',
+              'Nº PEDIDO',
+              'PEDIDO DE VENDA',
+              'PEDIDO_VENDA',
+              'PEDIDO VENDA',
             ]);
 
             const cliente = getCol([
-              'CLIENTE', 'NOME_CLIENTE', 'NOME CLIENTE', 'RAZAO_SOCIAL', 'RAZÃO SOCIAL',
-              'RAZAO SOCIAL', 'CLIENTE / RAZAO SOCIAL', 'NOME DO CLIENTE', 'COMPRADOR'
+              'CLIENTE',
+              'NOME_CLIENTE',
+              'NOME CLIENTE',
+              'RAZAO_SOCIAL',
+              'RAZÃO SOCIAL',
+              'RAZAO SOCIAL',
+              'CLIENTE / RAZAO SOCIAL',
+              'NOME DO CLIENTE',
+              'COMPRADOR',
             ]);
 
             const desenho = getCol([
-              'DESENHO', 'N_DESENHO', 'Nº DESENHO', 'COD_DESENHO', 'CODIGO DESENHO', 'DESENHO TECNICO'
+              'DESENHO',
+              'N_DESENHO',
+              'Nº DESENHO',
+              'COD_DESENHO',
+              'CODIGO DESENHO',
+              'DESENHO TECNICO',
             ]);
 
             const produto = getCol([
-              'PRODUTO', 'ITEM', 'DESCRICAO', 'DESCRIÇÃO', 'MODELO BIG BAG',
-              'DESCRICAO DO PRODUTO', 'DESCRICAO_PRODUTO', 'PRODUTO / ITEM', 'BIG BAG', 'TIPO BIG BAG'
+              'PRODUTO',
+              'ITEM',
+              'DESCRICAO',
+              'DESCRIÇÃO',
+              'MODELO BIG BAG',
+              'DESCRICAO DO PRODUTO',
+              'DESCRICAO_PRODUTO',
+              'PRODUTO / ITEM',
+              'BIG BAG',
+              'TIPO BIG BAG',
             ]);
 
             const modelo = getCol([
-              'MODELO', 'TIPO_MODELO', 'ESPECIFICACAO', 'ESPECIFICAÇÃO', 'TIPO MODELO',
-              'MODELO DO BIG BAG', 'ESPECIFICACAO TECNICA', 'FECHAMENTO'
+              'MODELO',
+              'TIPO_MODELO',
+              'ESPECIFICACAO',
+              'ESPECIFICAÇÃO',
+              'TIPO MODELO',
+              'MODELO DO BIG BAG',
+              'ESPECIFICACAO TECNICA',
+              'FECHAMENTO',
             ]);
 
-            const dataProgRaw = getCol([
-              'DATA PROGAMADA', 'DATA PROGRAMADA', 'DATA_PROGRAMADA', 'DATA PROG', 'DATA_PROG', 'PROGRAMADA', 'DATA FABRICACAO', 'DATA INICIO'
+            const dataProgRaw = getColVal([
+              'DATA FINA PRODUÇÃO',
+              'DATA FINA PRODUCAO',
+              'DATA FINAL PRODUÇÃO',
+              'DATA FINAL PRODUCAO',
+              'DATA FIM PRODUÇÃO',
+              'DATA FIM PRODUCAO',
+              'DATA FINAL',
+              'DATA FIM',
+              'DATA PROGAMADA',
+              'DATA PROGRAMADA',
+              'DATA_PROGRAMADA',
+              'DATA PROG',
+              'DATA_PROG',
+              'PROGRAMADA',
+              'DATA FABRICACAO',
+              'DATA INICIO',
             ]);
 
             const statusProcessoRaw = getCol([
-              'STATUS DO PROCESSO', 'STATUS PROCESSO', 'STATUS', 'SITUACAO', 'SITUAÇÃO', 'ETAPA', 'STATUS OP', 'FASE'
+              'STATUS DO PROCESSO',
+              'STATUS PROCESSO',
+              'STATUS',
+              'SITUACAO',
+              'SITUAÇÃO',
+              'ETAPA',
+              'STATUS OP',
+              'FASE',
             ]);
 
-            const dataConfecRaw = getCol([
-              'DATA CONFEC.', 'DATA CONFEC', 'DATA CONFECCAO', 'DATA CONFECÇÃO', 'DATA_CONFEC', 'DATA_CONFECCAO', 'DATA ENTREGA', 'DATA_ENTREGA'
+            const dataConfecRaw = getColVal([
+              'DATA INICIO CONFECÇÃO',
+              'DATA INICIO CONFECCAO',
+              'DATA INICIO CONFEC',
+              'DATA CONFEC.',
+              'DATA CONFEC',
+              'DATA CONFECCAO',
+              'DATA CONFECÇÃO',
+              'DATA_CONFEC',
+              'DATA_CONFECCAO',
+              'DATA ENTREGA',
+              'DATA_ENTREGA',
             ]);
 
             const qtdProduzidaRaw = getCol([
-              'QUANTIDADE PRODUZIDA', 'QTD PRODUZIDA', 'QTD_PRODUZIDA', 'PRODUZIDO', 'PRODUZIDA', 'QTD_PRD',
-              'QUANTIDADE PRD', 'QTD FEITA', 'CONCLUIDO'
+              'QUANTIDADE PRODUZIDA',
+              'QTD PRODUZIDA',
+              'QTD_PRODUZIDA',
+              'PRODUZIDO',
+              'PRODUZIDA',
+              'QTD_PRD',
+              'QUANTIDADE PRD',
+              'QTD FEITA',
+              'CONCLUIDO',
             ]);
 
             const quantidadeRaw = getCol([
-              'QUANTIDADE', 'QTD', 'QTDE', 'QUANT', 'QTD_TOTAL', 'QUANTIDADE TOTAL', 'QTD TOTAL', 'QTD PEDIDA', 'VOLUME'
+              'QTDADE TOTAL',
+              'QUANTIDADE TOTAL',
+              'QTD TOTAL',
+              'QUANTIDADE',
+              'QTD',
+              'QTDE',
+              'QUANT',
+              'QTD_TOTAL',
+              'QTD PEDIDA',
+              'VOLUME',
             ]);
 
             const lote = getCol([
-              'LOTE', 'N_LOTE', 'Nº LOTE', 'NUMERO LOTE', 'LOTE_PRODUCAO', 'LOTE PRODUCAO'
+              'LOTE',
+              'N_LOTE',
+              'Nº LOTE',
+              'NUMERO LOTE',
+              'LOTE_PRODUCAO',
+              'LOTE PRODUCAO',
             ]);
 
             const eficiencaRaw = getCol([
-              'EFICIENCIA', 'EFICIÊNCIA', 'EFICIENCIA_%', 'EFIC'
+              'EFICIENCIA',
+              'EFICIÊNCIA',
+              'EFICIENCIA_%',
+              'EFIC',
             ]);
 
             const statusPedidoRaw = getCol([
-              'STATUS PED.', 'STATUS PEDIDO', 'STATUS PED', 'SITUACAO PEDIDO', 'STATUS_PEDIDO', 'STATUS_PED'
+              'STATUS PED.',
+              'STATUS PEDIDO',
+              'STATUS PED',
+              'SITUACAO PEDIDO',
+              'STATUS_PEDIDO',
+              'STATUS_PED',
             ]);
 
             const prioridadeRaw = getCol(['PRIORIDADE', 'PRIOR', 'URGENCIA']);
-            const capacidadeRaw = getCol(['CAPACIDADE_KG', 'CAPACIDADE KG', 'CARGA_KG', 'CARGA KG', 'CARGA', 'CAPACIDADE', 'KG', 'PESO']);
-            const gramaturaRaw = getCol(['GRAMATURA_GRM', 'GRAMATURA GRM', 'GRAMATURA', 'GRAM', 'TECIDO']);
-            const observacoes = getCol(['OBSERVACOES', 'OBSERVAÇÕES', 'OBS', 'NOTAS', 'OBSERVACAO']);
+            const capacidadeRaw = getCol([
+              'CAPACIDADE_KG',
+              'CAPACIDADE KG',
+              'CARGA_KG',
+              'CARGA KG',
+              'CARGA',
+              'CAPACIDADE',
+              'KG',
+              'PESO',
+            ]);
+            const gramaturaRaw = getCol([
+              'GRAMATURA_GRM',
+              'GRAMATURA GRM',
+              'GRAMATURA',
+              'GRAM',
+              'TECIDO',
+            ]);
+            const observacoes = getCol([
+              'OBSERVACOES',
+              'OBSERVAÇÕES',
+              'OBS',
+              'NOTAS',
+              'OBSERVACAO',
+            ]);
 
             if (!opNumber) {
               errosEncontrados++;
@@ -275,7 +426,8 @@ class ExcelService {
 
             const opKey = opNumber.toUpperCase();
             const quantidadeProduzida = parseInt(qtdProduzidaRaw) || 0;
-            const quantidade = parseInt(quantidadeRaw) || (quantidadeProduzida > 0 ? quantidadeProduzida : 100);
+            const quantidade =
+              parseInt(quantidadeRaw) || (quantidadeProduzida > 0 ? quantidadeProduzida : 100);
             const status = this.normalizarStatus(statusProcessoRaw || statusPedidoRaw);
             const prioridade = this.normalizarPrioridade(prioridadeRaw);
             let eficiencia = parseFloat(eficiencaRaw) || 95.0;
@@ -330,9 +482,20 @@ class ExcelService {
               // Check if modified
               const foiAlterado =
                 existing.status !== opData.status ||
+                existing.dataProgramada !== opData.dataProgramada ||
+                existing.dataConfec !== opData.dataConfec ||
                 existing.quantidade !== opData.quantidade ||
                 existing.quantidadeProduzida !== opData.quantidadeProduzida ||
                 existing.prioridade !== opData.prioridade ||
+                existing.cliente !== opData.cliente ||
+                existing.produto !== opData.produto ||
+                existing.modelo !== opData.modelo ||
+                existing.desenho !== opData.desenho ||
+                existing.lote !== opData.lote ||
+                existing.eficiencia !== opData.eficiencia ||
+                existing.empresaId !== opData.empresaId ||
+                existing.statusProcesso !== opData.statusProcesso ||
+                existing.statusPedido !== opData.statusPedido ||
                 existing.observacoes !== opData.observacoes;
 
               if (foiAlterado) {
@@ -435,23 +598,66 @@ class ExcelService {
    * Normalizes Excel date or string into YYYY-MM-DD
    */
   private normalizarData(dataRaw: any): string {
-    if (!dataRaw) return '';
+    if (dataRaw === undefined || dataRaw === null || dataRaw === '') return '';
+
+    // Handle JS Date objects (when cellDates: true is enabled in XLSX)
+    if (dataRaw instanceof Date) {
+      if (isNaN(dataRaw.getTime())) return '';
+      const y = dataRaw.getFullYear();
+      const m = String(dataRaw.getMonth() + 1).padStart(2, '0');
+      const d = String(dataRaw.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    // Handle Excel serial date numbers (e.g. 46223)
     if (typeof dataRaw === 'number') {
-      // Excel serial date integer
-      const dateObj = XLSX.SSF.parse_date_code(dataRaw);
-      if (dateObj) {
-        const y = dateObj.y;
-        const m = String(dateObj.m).padStart(2, '0');
-        const d = String(dateObj.d).padStart(2, '0');
-        return `${y}-${m}-${d}`;
+      try {
+        const dateObj = XLSX.SSF.parse_date_code(dataRaw);
+        if (dateObj) {
+          const y = dateObj.y;
+          const m = String(dateObj.m).padStart(2, '0');
+          const d = String(dateObj.d).padStart(2, '0');
+          return `${y}-${m}-${d}`;
+        }
+      } catch (e) {
+        // Fallthrough
       }
     }
+
     const str = String(dataRaw).trim();
+    if (!str) return '';
+
+    // YYYY-MM-DD
     if (str.match(/^\d{4}-\d{2}-\d{2}$/)) return str;
-    if (str.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-      const parts = str.split('/');
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+
+    // Match DD/MM/YYYY or D/M/YYYY or DD-MM-YYYY or DD.MM.YYYY
+    const dmyMatch = str.match(/^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})$/);
+    if (dmyMatch) {
+      const d = dmyMatch[1].padStart(2, '0');
+      const m = dmyMatch[2].padStart(2, '0');
+      let y = dmyMatch[3];
+      if (y.length === 2) y = '20' + y;
+      return `${y}-${m}-${d}`;
     }
+
+    // Match YYYY/MM/DD
+    const ymdMatch = str.match(/^(\d{4})[\/\.-](\d{1,2})[\/\.-](\d{1,2})$/);
+    if (ymdMatch) {
+      const y = ymdMatch[1];
+      const m = ymdMatch[2].padStart(2, '0');
+      const d = ymdMatch[3].padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    // Fallback JS Date parse
+    const parsed = new Date(str);
+    if (!isNaN(parsed.getTime()) && parsed.getFullYear() > 1990) {
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, '0');
+      const d = String(parsed.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
     return '';
   }
 
@@ -500,3 +706,13 @@ class ExcelService {
 }
 
 export const excelService = new ExcelService();
+
+export function formatarDataBR(dataStr?: string): string {
+  if (!dataStr) return '-';
+  const str = String(dataStr).trim();
+  if (str.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const [y, m, d] = str.split('-');
+    return `${d}/${m}/${y}`;
+  }
+  return str;
+}

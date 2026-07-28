@@ -17,7 +17,7 @@ import {
   User,
 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
-import { excelService } from '../../services/excelService';
+import { excelService, formatarDataBR } from '../../services/excelService';
 import { pdfService } from '../../services/pdfService';
 import { storageService } from '../../services/storageService';
 import { OrdemProducao } from '../../types';
@@ -942,7 +942,7 @@ export const RelatoriosView: React.FC = () => {
                     <td className="p-3 text-center font-bold text-slate-200">{op.status}</td>
                     <td className="p-3 text-center font-bold text-amber-400">{op.status === 'FINALIZADO' ? 100 : op.eficiencia}%</td>
                     <td className="p-3 font-mono text-slate-400">
-                      {op.dataProgramada || op.dataEntrega || '-'}
+                      {formatarDataBR(op.dataProgramada || op.dataEntrega)}
                     </td>
                   </tr>
                 ))}
