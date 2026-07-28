@@ -694,7 +694,7 @@ export const RelatoriosView: React.FC = () => {
                               <td className="p-2">{op.produto}</td>
                               <td className="p-2 font-mono">{op.quantidadeProduzida} / {op.quantidade}</td>
                               <td className="p-2 font-semibold text-slate-200">{op.status}</td>
-                              <td className="p-2 font-mono text-amber-400 font-bold">{op.eficiencia}%</td>
+                              <td className="p-2 font-mono text-amber-400 font-bold">{op.status === 'FINALIZADO' ? 100 : op.eficiencia}%</td>
                             </tr>
                           ))}
                         </tbody>
@@ -940,7 +940,7 @@ export const RelatoriosView: React.FC = () => {
                       {op.quantidadeProduzida} / {op.quantidade}
                     </td>
                     <td className="p-3 text-center font-bold text-slate-200">{op.status}</td>
-                    <td className="p-3 text-center font-bold text-amber-400">{op.eficiencia}%</td>
+                    <td className="p-3 text-center font-bold text-amber-400">{op.status === 'FINALIZADO' ? 100 : op.eficiencia}%</td>
                     <td className="p-3 font-mono text-slate-400">
                       {op.dataProgramada || op.dataEntrega || '-'}
                     </td>

@@ -15,75 +15,71 @@ class ExcelService {
    */
   public gerarPlanilhaModeloPCP(): void {
     const header = [
-      'OP',
+      'O.P',
+      'ID.',
       'PEDIDO',
       'CLIENTE',
+      'DESENHO',
       'PRODUTO',
       'MODELO',
-      'QUANTIDADE',
-      'QTD_PRODUZIDA',
-      'STATUS',
-      'PRIORIDADE',
-      'EFICIENCIA_%',
-      'DATA_PROGRAMADA',
-      'DATA_ENTREGA',
-      'CAPACIDADE_KG',
-      'GRAMATURA_GRM',
-      'OBSERVACOES',
+      'DATA PROGAMADA',
+      'STATUS DO PROCESSO',
+      'DATA CONFEC.',
+      'QUANTIDADE PRODUZIDA',
+      'LOTE',
+      'EFICIENCIA',
+      'STATUS PED.',
     ];
 
     const exData = [
       header,
       [
         'OP-2026-095',
+        'V',
         'PED-1049',
         'Agroquímica do Brasil S.A.',
+        'DES-402',
         'Big Bag Standard 4 Alças',
         'Saia Superior / Fundo Fechado',
-        1500,
-        0,
-        'AGUARDANDO',
-        'ALTA',
-        100.0,
         '2026-07-25',
-        '2026-08-01',
-        1000,
-        160,
-        'Pedido de alta prioridade. Bobinas de Ráfia liberadas.',
+        'AGUARDANDO',
+        '2026-07-28',
+        1500,
+        'LOTE-8821',
+        100.0,
+        'EM PRODUCAO',
       ],
       [
         'OP-2026-096',
+        'L',
         'PED-1050',
         'Fertilizantes Safra Forte Ltda',
-        'Big Bag Travado Q-Bag (Especial Anti-Abulamento)',
+        'DES-509',
+        'Big Bag Travado Q-Bag',
         'Válvula Carga / Válvula Descarga',
-        600,
-        150,
-        'CORTE',
-        'URGENTE',
-        93.5,
         '2026-07-22',
-        '2026-07-27',
-        1250,
-        190,
-        'Utilizar linha de costura em poliéster de alta tenacidade.',
+        'CORTE',
+        '2026-07-26',
+        600,
+        'LOTE-8822',
+        93.5,
+        'EM PRODUCAO',
       ],
       [
         'OP-2026-097',
+        'V',
         'PED-1051',
         'Mineração Vale Dourado S/A',
+        'DES-610',
         'Big Bag Carga Pesada Mineração',
-        'Abertura Total / Fundo Fechado Duplo',
-        2000,
-        500,
-        'PREPARAÇÃO',
-        'MÉDIA',
-        90.0,
+        'Abertura Total / Fundo Fechado',
         '2026-07-23',
-        '2026-08-05',
+        'PREPARAÇÃO',
+        '2026-07-27',
         2000,
-        240,
-        'Inspecionar alças estivadas com dinamômetro.',
+        'LOTE-8823',
+        90.0,
+        'PENDENTE',
       ],
     ];
 
@@ -91,21 +87,20 @@ class ExcelService {
 
     // Set column widths
     worksheet['!cols'] = [
-      { wch: 15 }, // OP
-      { wch: 12 }, // Pedido
-      { wch: 30 }, // Cliente
-      { wch: 35 }, // Produto
-      { wch: 32 }, // Modelo
-      { wch: 14 }, // Qtd
-      { wch: 16 }, // Qtd Prod
-      { wch: 14 }, // Status
-      { wch: 12 }, // Prioridade
-      { wch: 14 }, // Eficiencia
-      { wch: 16 }, // Data Prog
-      { wch: 16 }, // Data Ent
-      { wch: 16 }, // Carga
-      { wch: 16 }, // Gram
-      { wch: 45 }, // Obs
+      { wch: 15 }, // O.P
+      { wch: 8 },  // ID. (EMPRESA L/V)
+      { wch: 14 }, // PEDIDO
+      { wch: 30 }, // CLIENTE
+      { wch: 14 }, // DESENHO
+      { wch: 32 }, // PRODUTO
+      { wch: 32 }, // MODELO
+      { wch: 16 }, // DATA PROGAMADA
+      { wch: 22 }, // STATUS DO PROCESSO
+      { wch: 16 }, // DATA CONFEC.
+      { wch: 22 }, // QUANTIDADE PRODUZIDA
+      { wch: 14 }, // LOTE
+      { wch: 14 }, // EFICIENCIA
+      { wch: 16 }, // STATUS PED.
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -202,8 +197,12 @@ class ExcelService {
             };
 
             const opNumber = getCol([
-              'OP', 'ORDEM', 'ORDEM_PRODUCAO', 'ORDEM DE PRODUCAO', 'ORDEM PRODUCAO',
-              'NUMERO_OP', 'NUMERO OP', 'N_OP', 'Nº OP', 'OP N°', 'LOTE', 'PROGRAMACAO'
+              'O.P', 'O.P.', 'OP', 'ORDEM', 'ORDEM_PRODUCAO', 'ORDEM DE PRODUCAO', 'ORDEM PRODUCAO',
+              'NUMERO_OP', 'NUMERO OP', 'N_OP', 'Nº OP', 'OP N°'
+            ]);
+
+            const empresaIdRaw = getCol([
+              'ID.', 'ID', 'EMPRESA', 'EMPRESA_ID', 'SIGLA', 'EMPRESA L/V'
             ]);
 
             const pedidoNumber = getCol([
@@ -213,7 +212,11 @@ class ExcelService {
 
             const cliente = getCol([
               'CLIENTE', 'NOME_CLIENTE', 'NOME CLIENTE', 'RAZAO_SOCIAL', 'RAZÃO SOCIAL',
-              'RAZAO SOCIAL', 'CLIENTE / RAZAO SOCIAL', 'NOME DO CLIENTE', 'EMPRESA', 'COMPRADOR'
+              'RAZAO SOCIAL', 'CLIENTE / RAZAO SOCIAL', 'NOME DO CLIENTE', 'COMPRADOR'
+            ]);
+
+            const desenho = getCol([
+              'DESENHO', 'N_DESENHO', 'Nº DESENHO', 'COD_DESENHO', 'CODIGO DESENHO', 'DESENHO TECNICO'
             ]);
 
             const produto = getCol([
@@ -226,59 +229,94 @@ class ExcelService {
               'MODELO DO BIG BAG', 'ESPECIFICACAO TECNICA', 'FECHAMENTO'
             ]);
 
+            const dataProgRaw = getCol([
+              'DATA PROGAMADA', 'DATA PROGRAMADA', 'DATA_PROGRAMADA', 'DATA PROG', 'DATA_PROG', 'PROGRAMADA', 'DATA FABRICACAO', 'DATA INICIO'
+            ]);
+
+            const statusProcessoRaw = getCol([
+              'STATUS DO PROCESSO', 'STATUS PROCESSO', 'STATUS', 'SITUACAO', 'SITUAÇÃO', 'ETAPA', 'STATUS OP', 'FASE'
+            ]);
+
+            const dataConfecRaw = getCol([
+              'DATA CONFEC.', 'DATA CONFEC', 'DATA CONFECCAO', 'DATA CONFECÇÃO', 'DATA_CONFEC', 'DATA_CONFECCAO', 'DATA ENTREGA', 'DATA_ENTREGA'
+            ]);
+
+            const qtdProduzidaRaw = getCol([
+              'QUANTIDADE PRODUZIDA', 'QTD PRODUZIDA', 'QTD_PRODUZIDA', 'PRODUZIDO', 'PRODUZIDA', 'QTD_PRD',
+              'QUANTIDADE PRD', 'QTD FEITA', 'CONCLUIDO'
+            ]);
+
             const quantidadeRaw = getCol([
               'QUANTIDADE', 'QTD', 'QTDE', 'QUANT', 'QTD_TOTAL', 'QUANTIDADE TOTAL', 'QTD TOTAL', 'QTD PEDIDA', 'VOLUME'
             ]);
 
-            const qtdProduzidaRaw = getCol([
-              'QTD_PRODUZIDA', 'PRODUZIDO', 'PRODUZIDA', 'QTD_PRD', 'QTD PRODUZIDA',
-              'QUANTIDADE PRODUZIDA', 'QUANTIDADE PRD', 'QTD FEITA', 'CONCLUIDO'
+            const lote = getCol([
+              'LOTE', 'N_LOTE', 'Nº LOTE', 'NUMERO LOTE', 'LOTE_PRODUCAO', 'LOTE PRODUCAO'
             ]);
 
-            const statusRaw = getCol(['STATUS', 'SITUACAO', 'SITUAÇÃO', 'ETAPA', 'STATUS OP', 'FASE']);
+            const eficiencaRaw = getCol([
+              'EFICIENCIA', 'EFICIÊNCIA', 'EFICIENCIA_%', 'EFIC'
+            ]);
+
+            const statusPedidoRaw = getCol([
+              'STATUS PED.', 'STATUS PEDIDO', 'STATUS PED', 'SITUACAO PEDIDO', 'STATUS_PEDIDO', 'STATUS_PED'
+            ]);
+
             const prioridadeRaw = getCol(['PRIORIDADE', 'PRIOR', 'URGENCIA']);
-            const eficiencaRaw = getCol(['EFICIENCIA_%', 'EFICIENCIA', 'EFICIÊNCIA', 'EFIC']);
-            const dataProgRaw = getCol(['DATA_PROGRAMADA', 'DATA PROGRAMADA', 'DATA_PROG', 'DATA PROG', 'PROGRAMADA', 'DATA FABRICACAO', 'DATA INICIO']);
-            const dataEntregaRaw = getCol(['DATA_ENTREGA', 'DATA ENTREGA', 'ENTREGA', 'PREVISAO', 'PREVISÃO', 'PREVISAO ENTREGA', 'PREVISÃO ENTREGA', 'PRAZO']);
             const capacidadeRaw = getCol(['CAPACIDADE_KG', 'CAPACIDADE KG', 'CARGA_KG', 'CARGA KG', 'CARGA', 'CAPACIDADE', 'KG', 'PESO']);
             const gramaturaRaw = getCol(['GRAMATURA_GRM', 'GRAMATURA GRM', 'GRAMATURA', 'GRAM', 'TECIDO']);
             const observacoes = getCol(['OBSERVACOES', 'OBSERVAÇÕES', 'OBS', 'NOTAS', 'OBSERVACAO']);
 
             if (!opNumber) {
               errosEncontrados++;
-              detalhesErros.push(`Linha ${linhaNum}: Número da OP não informado.`);
+              detalhesErros.push(`Linha ${linhaNum}: Número da O.P não informado.`);
               return;
             }
 
             const opKey = opNumber.toUpperCase();
-            const quantidade = parseInt(quantidadeRaw) || 100;
             const quantidadeProduzida = parseInt(qtdProduzidaRaw) || 0;
-            const status = this.normalizarStatus(statusRaw);
+            const quantidade = parseInt(quantidadeRaw) || (quantidadeProduzida > 0 ? quantidadeProduzida : 100);
+            const status = this.normalizarStatus(statusProcessoRaw || statusPedidoRaw);
             const prioridade = this.normalizarPrioridade(prioridadeRaw);
-            const eficiencia = parseFloat(eficiencaRaw) || 95.0;
+            let eficiencia = parseFloat(eficiencaRaw) || 95.0;
+            if (status === 'FINALIZADO') {
+              eficiencia = 100.0;
+            }
             const dataProgramada =
               this.normalizarData(dataProgRaw) || new Date().toISOString().substring(0, 10);
-            const dataEntrega =
-              this.normalizarData(dataEntregaRaw) || new Date().toISOString().substring(0, 10);
+            const dataConfec = this.normalizarData(dataConfecRaw);
+            const dataEntrega = dataConfec || dataProgramada;
+
+            // Empresa ID normalization: L (LAELSON) or V (VIRTUDE)
+            let empresaId = empresaIdRaw.toUpperCase();
+            if (empresaId.includes('LAELSON')) empresaId = 'L';
+            else if (empresaId.includes('VIRTUDE')) empresaId = 'V';
+            else if (!empresaId) empresaId = 'V';
 
             const opData: OrdemProducao = {
               id: opMap.get(opKey)?.id || `op-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
               opNumber: opNumber.toUpperCase(),
+              empresaId,
               pedidoNumber: pedidoNumber ? pedidoNumber.toUpperCase() : 'PED-VAR',
               cliente: cliente || 'Cliente Indefinido',
+              desenho: desenho || '',
               produto: produto || 'Big Bag Standard',
               modelo: modelo || 'Saia Superior / Fundo Fechado',
+              dataProgramada,
+              statusProcesso: statusProcessoRaw || status,
+              status,
+              dataConfec,
               quantidade,
               quantidadeProduzida,
-              status,
-              prioridade,
+              lote: lote || '',
               eficiencia,
-              dataProgramada,
+              prioridade,
+              statusPedido: statusPedidoRaw || 'EM PRODUCAO',
               dataEntrega,
               capacidadeCargaKg: parseInt(capacidadeRaw) || 1000,
               tecidoGrm: parseInt(gramaturaRaw) || 160,
               observacoes: observacoes || 'Importado via Planilha PCP Excel',
-              tempoEstimadoHoras: Math.ceil(quantidade / 25),
+              tempoEstimadoHoras: Math.ceil((quantidade || 100) / 25),
               alteradoEm: new Date().toISOString().replace('T', ' ').substring(0, 19),
             };
 
@@ -422,19 +460,20 @@ class ExcelService {
    */
   public exportarOpsParaExcel(ops: OrdemProducao[], filename: string = 'Relatorio_Programacao_Virtude_BigBags.xlsx'): void {
     const rows = ops.map((op) => ({
-      'OP': op.opNumber,
-      'Pedido': op.pedidoNumber,
-      'Cliente': op.cliente,
-      'Produto': op.produto,
-      'Modelo': op.modelo,
-      'Qtd Total': op.quantidade,
-      'Qtd Produzida': op.quantidadeProduzida,
-      'Status': op.status,
-      'Prioridade': op.prioridade,
-      'Eficiência (%)': `${op.eficiencia}%`,
-      'Data Programada': op.dataProgramada,
-      'Data Entrega': op.dataEntrega,
-      'Observações': op.observacoes || '',
+      'O.P': op.opNumber,
+      'ID.': op.empresaId || 'V',
+      'PEDIDO': op.pedidoNumber,
+      'CLIENTE': op.cliente,
+      'DESENHO': op.desenho || '-',
+      'PRODUTO': op.produto,
+      'MODELO': op.modelo,
+      'DATA PROGAMADA': op.dataProgramada,
+      'STATUS DO PROCESSO': op.statusProcesso || op.status,
+      'DATA CONFEC.': op.dataConfec || op.dataEntrega || '-',
+      'QUANTIDADE PRODUZIDA': op.quantidadeProduzida || op.quantidade,
+      'LOTE': op.lote || '-',
+      'EFICIENCIA': `${op.eficiencia}%`,
+      'STATUS PED.': op.statusPedido || 'EM PRODUCAO',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(rows);

@@ -414,7 +414,7 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
                       </td>
                       <td className="p-3 text-center">{renderStatusBadge(op.status)}</td>
                       <td className="p-3 text-center font-bold text-slate-800 dark:text-slate-200">
-                        {op.eficiencia}%
+                        {op.status === 'FINALIZADO' ? 100 : op.eficiencia}%
                       </td>
                       <td className="p-3 font-mono text-slate-500 dark:text-slate-400">
                         {op.dataProgramada}

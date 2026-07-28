@@ -108,9 +108,16 @@ class StorageService {
     }
     try {
       const parsed: OrdemProducao[] = JSON.parse(raw);
-      const cleaned = parsed.filter(
-        (op) => !['op-101', 'op-102', 'op-103', 'op-104', 'op-105', 'op-106', 'op-107'].includes(op.id)
-      );
+      const cleaned = parsed
+        .map((op) => {
+          if (op.status === 'FINALIZADO') {
+            return { ...op, eficiencia: 100, quantidadeProduzida: op.quantidade };
+          }
+          return op;
+        })
+        .filter(
+          (op) => !['op-101', 'op-102', 'op-103', 'op-104', 'op-105', 'op-106', 'op-107'].includes(op.id)
+        );
       if (cleaned.length !== parsed.length) {
         localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(cleaned));
       }
@@ -134,8 +141,14 @@ class StorageService {
       console.warn('Operação bloqueada: Usuário com permissão de Somente Leitura.');
       return;
     }
-    localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(ops));
-    mysqlSyncService.syncOpsToMysql(ops);
+    const opsAjustadas = ops.map((op) => {
+      if (op.status === 'FINALIZADO') {
+        return { ...op, eficiencia: 100, quantidadeProduzida: op.quantidade };
+      }
+      return op;
+    });
+    localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(opsAjustadas));
+    mysqlSyncService.syncOpsToMysql(opsAjustadas);
     this.dispatchSyncEvent();
   }
 
@@ -147,6 +160,44 @@ class StorageService {
     const currentClientes = this.getClientesDirect();
     const clientesMap = new Map<string, Cliente>();
     currentClientes.forEach((c) => clientesMap.set(c.nome.toLowerCase().trim(), c));
+
+    // Calculate per-client active orders and total bags
+    const opsPorCliente = new Map<string, OrdemProducao[]>();
+    ops.forEach((op) => {
+      if (op.cliente && op.cliente.trim() && op.cliente !== 'Cliente Indefinido') {
+        const cliKey = op.cliente.toLowerCase().trim();
+        const existing = opsPorCliente.get(cliKey) || [];
+        existing.push(op);
+        opsPorCliente.set(cliKey, existing);
+      }
+    });
+
+    opsPorCliente.forEach((clienteOps, cliKey) => {
+      const activeOpsCount = clienteOps.filter((op) => op.status !== 'FINALIZADO').length;
+      const totalBags = clienteOps.reduce((sum, op) => sum + (op.quantidade || 0), 0);
+      const sampleOp = clienteOps[0];
+
+      if (!clientesMap.has(cliKey)) {
+        const novoCli: Cliente = {
+          id: `cli-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          nome: sampleOp.cliente.trim(),
+          cnpj: '12.345.678/0001-90',
+          cidadeUF: 'São Paulo / SP',
+          contato: 'Setor Compras / PCP',
+          telefone: '(11) 3000-0000',
+          email: 'contato@cliente.com.br',
+          pedidosAtivos: activeOpsCount,
+          totalBigBagsComprados: totalBags,
+          status: 'ATIVO',
+        };
+        clientesMap.set(cliKey, novoCli);
+      } else {
+        const cli = clientesMap.get(cliKey)!;
+        cli.pedidosAtivos = activeOpsCount;
+        cli.totalBigBagsComprados = totalBags;
+        clientesMap.set(cliKey, cli);
+      }
+    });
 
     // 2. Produtos
     const currentProdutos = this.getProdutosDirect();
@@ -162,29 +213,6 @@ class StorageService {
     currentPedidos.forEach((p) => pedidosMap.set(p.pedidoNumber.toUpperCase().trim(), p));
 
     ops.forEach((op) => {
-      // Sync Cliente
-      if (op.cliente && op.cliente.trim() && op.cliente !== 'Cliente Indefinido') {
-        const cliKey = op.cliente.toLowerCase().trim();
-        if (!clientesMap.has(cliKey)) {
-          const novoCli: Cliente = {
-            id: `cli-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-            nome: op.cliente.trim(),
-            cnpj: '12.345.678/0001-90',
-            cidadeUF: 'São Paulo / SP',
-            contato: 'Setor Compras / PCP',
-            telefone: '(11) 3000-0000',
-            email: 'contato@cliente.com.br',
-            pedidosAtivos: 1,
-            totalBigBagsComprados: op.quantidade || 0,
-            status: 'ATIVO',
-          };
-          clientesMap.set(cliKey, novoCli);
-        } else {
-          const cli = clientesMap.get(cliKey)!;
-          cli.totalBigBagsComprados = (cli.totalBigBagsComprados || 0) + (op.quantidade || 0);
-        }
-      }
-
       // Sync Produto
       if (op.produto && op.produto.trim()) {
         const prodKey = op.produto.toLowerCase().trim();
@@ -285,10 +313,59 @@ class StorageService {
 
   public getClientes(): Cliente[] {
     let list = this.getClientesDirect();
-    if (list.length === 0 && this.getOps().length > 0) {
+    const ops = this.getOps();
+
+    if (list.length === 0 && ops.length > 0) {
       this.syncDerivadosComOps();
       list = this.getClientesDirect();
     }
+
+    if (ops.length > 0) {
+      const opsPorCliente = new Map<string, OrdemProducao[]>();
+      ops.forEach((op) => {
+        if (op.cliente && op.cliente.trim() && op.cliente !== 'Cliente Indefinido') {
+          const key = op.cliente.toLowerCase().trim();
+          const existing = opsPorCliente.get(key) || [];
+          existing.push(op);
+          opsPorCliente.set(key, existing);
+        }
+      });
+
+      const listKeys = new Set(list.map((c) => c.nome.toLowerCase().trim()));
+      opsPorCliente.forEach((clienteOps, key) => {
+        if (!listKeys.has(key)) {
+          const sampleOp = clienteOps[0];
+          list.push({
+            id: `cli-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            nome: sampleOp.cliente.trim(),
+            cnpj: '12.345.678/0001-90',
+            cidadeUF: 'São Paulo / SP',
+            contato: 'Setor Compras / PCP',
+            telefone: '(11) 3000-0000',
+            email: 'contato@cliente.com.br',
+            pedidosAtivos: 0,
+            totalBigBagsComprados: 0,
+            status: 'ATIVO',
+          });
+        }
+      });
+
+      list = list.map((cli) => {
+        const key = cli.nome.toLowerCase().trim();
+        const clienteOps = opsPorCliente.get(key);
+        if (clienteOps && clienteOps.length > 0) {
+          const activeOpsCount = clienteOps.filter((op) => op.status !== 'FINALIZADO').length;
+          const totalBags = clienteOps.reduce((sum, op) => sum + (op.quantidade || 0), 0);
+          return {
+            ...cli,
+            pedidosAtivos: activeOpsCount,
+            totalBigBagsComprados: totalBags,
+          };
+        }
+        return cli;
+      });
+    }
+
     return list;
   }
 
@@ -737,6 +814,7 @@ class StorageService {
 
     if (novoStatus === 'FINALIZADO') {
       op.quantidadeProduzida = op.quantidade;
+      op.eficiencia = 100;
       op.dataFimReal = new Date().toISOString().replace('T', ' ').substring(0, 16);
     } else if (
       (statusAntigo === 'AGUARDANDO' || !op.dataInicioReal) &&

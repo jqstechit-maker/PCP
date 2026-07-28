@@ -106,11 +106,44 @@ export const ImportadorExcelView: React.FC<ImportadorExcelViewProps> = ({
 
         <button
           onClick={() => excelService.gerarPlanilhaModeloPCP()}
-          className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow-md self-start md:self-auto"
+          className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow-md self-start md:self-auto shrink-0"
         >
           <Download className="w-4 h-4" />
           <span>Baixar Modelo PCP (.xlsx)</span>
         </button>
+      </div>
+
+      {/* Structure / Column Reference Banner */}
+      <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-lg space-y-2">
+        <p className="text-xs font-bold text-slate-300 flex items-center space-x-1.5 uppercase tracking-wider">
+          <FileCheck className="w-4 h-4 text-blue-400" />
+          <span>Estrutura Mapeada das 14 Colunas PCP da Planilha:</span>
+        </p>
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {[
+            'O.P',
+            'ID. (Empresa L/V)',
+            'PEDIDO',
+            'CLIENTE',
+            'DESENHO',
+            'PRODUTO',
+            'MODELO',
+            'DATA PROGAMADA',
+            'STATUS DO PROCESSO',
+            'DATA CONFEC.',
+            'QUANTIDADE PRODUZIDA',
+            'LOTE',
+            'EFICIENCIA',
+            'STATUS PED.',
+          ].map((col, idx) => (
+            <span
+              key={idx}
+              className="px-2.5 py-1 bg-slate-800 border border-slate-700 text-slate-200 text-[11px] font-mono font-semibold rounded-lg"
+            >
+              <strong className="text-amber-400 mr-1">{idx + 1}.</strong> {col}
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* Main Upload Zone & Process Result */}

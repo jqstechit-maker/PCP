@@ -1,10 +1,23 @@
 import { Building2, Mail, MapPin, Phone, Users } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { storageService } from '../../services/storageService';
 import { Cliente } from '../../types';
 
 export const ClientesView: React.FC = () => {
-  const [clientes] = useState<Cliente[]>(() => storageService.getClientes());
+  const [clientes, setClientes] = useState<Cliente[]>(() => storageService.getClientes());
+
+  useEffect(() => {
+    const carregar = () => {
+      setClientes(storageService.getClientes());
+    };
+
+    window.addEventListener('storage', carregar);
+    window.addEventListener('pvd_data_sync', carregar);
+    return () => {
+      window.removeEventListener('storage', carregar);
+      window.removeEventListener('pvd_data_sync', carregar);
+    };
+  }, []);
 
   return (
     <div className="space-y-6 pb-8">

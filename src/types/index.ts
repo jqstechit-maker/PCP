@@ -11,16 +11,22 @@ export type PrioridadeOp = 'BAIXA' | 'MÉDIA' | 'ALTA' | 'URGENTE';
 export interface OrdemProducao {
   id: string;
   opNumber: string; // Ex: OP-2026-089
+  empresaId?: string; // Ex: 'L' (LAELSON) ou 'V' (VIRTUDE)
   pedidoNumber: string; // Ex: PED-1045
   cliente: string;
+  desenho?: string; // Desenho técnico
   produto: string; // Ex: Big Bag Travado 90x90x120cm
   modelo: string; // Ex: Saia Superior / Funil Inferior
+  dataProgramada: string; // YYYY-MM-DD
+  statusProcesso?: string; // Status do processo
+  status: StatusProducao;
+  dataConfec?: string; // Data de confecção
   quantidade: number;
   quantidadeProduzida: number;
-  status: StatusProducao;
-  prioridade: PrioridadeOp;
+  lote?: string; // Número do lote
   eficiencia: number; // Ex: 94%
-  dataProgramada: string; // YYYY-MM-DD
+  prioridade: PrioridadeOp;
+  statusPedido?: string; // Status do pedido
   dataEntrega: string; // YYYY-MM-DD
   dataInicioReal?: string;
   dataFimReal?: string;
