@@ -340,6 +340,7 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
                     <ArrowUpDown className="w-3 h-3" />
                   </div>
                 </th>
+                <th className="p-3 text-center">ID</th>
                 <th className="p-3">Pedido</th>
                 <th
                   onClick={() => alternarOrdenacao('cliente')}
@@ -388,6 +389,9 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
                     >
                       <td className="p-3 font-mono font-bold text-blue-600 dark:text-blue-400">
                         {op.opNumber}
+                      </td>
+                      <td className="p-3 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
+                        {(op.empresaId || 'V').toUpperCase().includes('L') ? 'L' : 'V'}
                       </td>
                       <td className="p-3 font-mono text-slate-500 dark:text-slate-400">{op.pedidoNumber}</td>
                       <td className="p-3 font-semibold text-slate-900 dark:text-slate-100 max-w-[180px] truncate">
@@ -439,7 +443,7 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
                 })
               ) : (
                 <tr>
-                  <td colSpan={9} className="p-8 text-center text-slate-400">
+                  <td colSpan={10} className="p-8 text-center text-slate-400">
                     Nenhuma Ordem de Produção encontrada com os filtros atuais.
                   </td>
                 </tr>
