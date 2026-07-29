@@ -168,80 +168,59 @@ class FirebaseSyncService {
   }
 
   // --- Push updates to Firestore Cloud ---
-  public async syncOpsToCloud(ops: OrdemProducao[]) {
+  private async executeChunkedSync<T extends { id: string }>(
+    collectionName: string,
+    items: T[]
+  ) {
     if (this.isSyncingFromRemote) return;
     try {
-      const batch = writeBatch(db);
-      const existing = await getDocs(collection(db, 'ops'));
-      existing.forEach((docSnap) => {
-        batch.delete(docSnap.ref);
+      const colRef = collection(db, collectionName);
+      const existing = await getDocs(colRef);
+      const existingIds = new Set(existing.docs.map((d) => d.id));
+      const currentIds = new Set(items.map((i) => i.id));
+
+      const ops: Array<(batch: any) => void> = [];
+
+      // Delete items no longer present
+      existing.docs.forEach((docSnap) => {
+        if (!currentIds.has(docSnap.id)) {
+          ops.push((b) => b.delete(docSnap.ref));
+        }
       });
 
-      ops.forEach((op) => {
-        const ref = doc(db, 'ops', op.id);
-        batch.set(ref, op);
+      // Upsert current items
+      items.forEach((item) => {
+        const ref = doc(db, collectionName, item.id);
+        ops.push((b) => b.set(ref, item));
       });
-      await batch.commit();
+
+      // Execute in chunks of 350 operations
+      const CHUNK_SIZE = 350;
+      for (let i = 0; i < ops.length; i += CHUNK_SIZE) {
+        const chunk = ops.slice(i, i + CHUNK_SIZE);
+        const batch = writeBatch(db);
+        chunk.forEach((opFn) => opFn(batch));
+        await batch.commit();
+      }
     } catch (err) {
-      console.error('Error syncing OPs to cloud:', err);
+      console.error(`Error syncing ${collectionName} to cloud:`, err);
     }
+  }
+
+  public async syncOpsToCloud(ops: OrdemProducao[]) {
+    await this.executeChunkedSync('ops', ops);
   }
 
   public async syncClientesToCloud(clientes: Cliente[]) {
-    if (this.isSyncingFromRemote) return;
-    try {
-      const batch = writeBatch(db);
-      const existing = await getDocs(collection(db, 'clientes'));
-      existing.forEach((docSnap) => {
-        batch.delete(docSnap.ref);
-      });
-
-      clientes.forEach((cli) => {
-        const ref = doc(db, 'clientes', cli.id);
-        batch.set(ref, cli);
-      });
-      await batch.commit();
-    } catch (err) {
-      console.error('Error syncing Clientes to cloud:', err);
-    }
+    await this.executeChunkedSync('clientes', clientes);
   }
 
   public async syncProdutosToCloud(produtos: Produto[]) {
-    if (this.isSyncingFromRemote) return;
-    try {
-      const batch = writeBatch(db);
-      const existing = await getDocs(collection(db, 'produtos'));
-      existing.forEach((docSnap) => {
-        batch.delete(docSnap.ref);
-      });
-
-      produtos.forEach((prod) => {
-        const ref = doc(db, 'produtos', prod.id);
-        batch.set(ref, prod);
-      });
-      await batch.commit();
-    } catch (err) {
-      console.error('Error syncing Produtos to cloud:', err);
-    }
+    await this.executeChunkedSync('produtos', produtos);
   }
 
   public async syncPedidosToCloud(pedidos: Pedido[]) {
-    if (this.isSyncingFromRemote) return;
-    try {
-      const batch = writeBatch(db);
-      const existing = await getDocs(collection(db, 'pedidos'));
-      existing.forEach((docSnap) => {
-        batch.delete(docSnap.ref);
-      });
-
-      pedidos.forEach((ped) => {
-        const ref = doc(db, 'pedidos', ped.id);
-        batch.set(ref, ped);
-      });
-      await batch.commit();
-    } catch (err) {
-      console.error('Error syncing Pedidos to cloud:', err);
-    }
+    await this.executeChunkedSync('pedidos', pedidos);
   }
 
   public async syncConfiguracoesToCloud(config: ConfiguracoesSistema) {
@@ -254,60 +233,15 @@ class FirebaseSyncService {
   }
 
   public async syncUsuariosSistemaToCloud(usuarios: UsuarioSistema[]) {
-    if (this.isSyncingFromRemote) return;
-    try {
-      const batch = writeBatch(db);
-      const existing = await getDocs(collection(db, 'usuarios_sistema'));
-      existing.forEach((docSnap) => {
-        batch.delete(docSnap.ref);
-      });
-
-      usuarios.forEach((u) => {
-        const ref = doc(db, 'usuarios_sistema', u.id);
-        batch.set(ref, u);
-      });
-      await batch.commit();
-    } catch (err) {
-      console.error('Error syncing usuarios_sistema to cloud:', err);
-    }
+    await this.executeChunkedSync('usuarios_sistema', usuarios);
   }
 
   public async syncLogsImportacaoToCloud(logs: LogImportacao[]) {
-    if (this.isSyncingFromRemote) return;
-    try {
-      const batch = writeBatch(db);
-      const existing = await getDocs(collection(db, 'logs_importacao'));
-      existing.forEach((docSnap) => {
-        batch.delete(docSnap.ref);
-      });
-
-      logs.forEach((log) => {
-        const ref = doc(db, 'logs_importacao', log.id);
-        batch.set(ref, log);
-      });
-      await batch.commit();
-    } catch (err) {
-      console.error('Error syncing logs importação to cloud:', err);
-    }
+    await this.executeChunkedSync('logs_importacao', logs);
   }
 
   public async syncLogsSistemaToCloud(logs: LogSistema[]) {
-    if (this.isSyncingFromRemote) return;
-    try {
-      const batch = writeBatch(db);
-      const existing = await getDocs(collection(db, 'logs_sistema'));
-      existing.forEach((docSnap) => {
-        batch.delete(docSnap.ref);
-      });
-
-      logs.forEach((log) => {
-        const ref = doc(db, 'logs_sistema', log.id);
-        batch.set(ref, log);
-      });
-      await batch.commit();
-    } catch (err) {
-      console.error('Error syncing logs sistema to cloud:', err);
-    }
+    await this.executeChunkedSync('logs_sistema', logs);
   }
 }
 
