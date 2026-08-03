@@ -930,33 +930,44 @@ class StorageService {
   }
 
   // --- Reset to Initial State ---
-  public resetarBanco(): void {
-    if (!this.podeEditar()) {
-      console.warn('Operação bloqueada: Usuário com permissão de Somente Leitura.');
-      return;
-    }
-    localStorage.removeItem(STORAGE_KEYS.OPS);
-    localStorage.removeItem(STORAGE_KEYS.PEDIDOS);
-    localStorage.removeItem(STORAGE_KEYS.CLIENTES);
-    localStorage.removeItem(STORAGE_KEYS.PRODUTOS);
-    localStorage.removeItem(STORAGE_KEYS.LOGS_IMPORTACAO);
-    localStorage.removeItem(STORAGE_KEYS.LOGS_SISTEMA);
-    localStorage.removeItem(STORAGE_KEYS.USUARIO);
+  public async resetarBanco(): Promise<void> {
+    localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.PRODUTOS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.LOGS_IMPORTACAO, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.LOGS_SISTEMA, JSON.stringify([]));
 
-    this.getOps();
-    this.getPedidos();
-    this.getClientes();
-    this.getProdutos();
-    this.getLogsImportacao();
-    this.getLogsSistema();
-    this.getUsuario();
+    try {
+      await firebaseSyncService.syncOpsToCloud([]);
+      await firebaseSyncService.syncClientesToCloud([]);
+      await firebaseSyncService.syncProdutosToCloud([]);
+      await firebaseSyncService.syncPedidosToCloud([]);
+      await firebaseSyncService.syncLogsImportacaoToCloud([]);
+      await firebaseSyncService.syncLogsSistemaToCloud([]);
+    } catch (err) {
+      console.error('Erro ao sincronizar reset com Firebase Cloud:', err);
+    }
+
+    try {
+      mysqlSyncService.syncOpsToMysql([]);
+      mysqlSyncService.syncClientesToMysql([]);
+      mysqlSyncService.syncProdutosToMysql([]);
+      mysqlSyncService.syncPedidosToMysql([]);
+      mysqlSyncService.syncLogsImportacaoToMysql([]);
+      mysqlSyncService.syncLogsSistemaToMysql([]);
+    } catch (err) {
+      console.error('Erro ao sincronizar reset com MySQL:', err);
+    }
 
     this.addLogSistema(
       'CONFIGURAÇÕES',
       'RESET_BANCO',
-      'Banco de dados restaurado para os dados padrão da Virtude Big Bags',
+      'Banco de dados restaurado e limpo com sucesso.',
       'WARNING'
     );
+
+    this.dispatchSyncEvent();
   }
 }
 

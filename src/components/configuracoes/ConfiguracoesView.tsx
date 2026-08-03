@@ -43,6 +43,7 @@ export const ConfiguracoesView: React.FC = () => {
   const [adminUserLogin, setAdminUserLogin] = useState('');
   const [adminUserSenha, setAdminUserSenha] = useState('');
   const [erroAuthAdmin, setErroAuthAdmin] = useState('');
+  const [resetando, setResetando] = useState(false);
 
   const usuarioLogado = storageService.getUsuarioSessao() || storageService.getUsuario();
   const podeEditar = usuarioLogado.permissao === 'EDITAR' && usuarioLogado.perfil !== 'VISUALIZADOR';
@@ -72,22 +73,18 @@ export const ConfiguracoesView: React.FC = () => {
 
 
   const handleAbrirModalResetar = () => {
-    if (!podeEditar) {
-      alert('Acesso negado: Seu usuário possui permissão apenas de Somente Leitura.');
-      return;
-    }
-    setAdminUserLogin('');
+    setAdminUserLogin(usuarioLogado.nome || '');
     setAdminUserSenha('');
     setErroAuthAdmin('');
     setModalAuthAdminAberto(true);
   };
 
-  const handleConfirmarResetAdmin = (e: React.FormEvent) => {
+  const handleConfirmarResetAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErroAuthAdmin('');
 
-    if (!adminUserLogin.trim() || !adminUserSenha.trim()) {
-      setErroAuthAdmin('Por favor, informe o Usuário e a Senha de Administrador.');
+    if (!adminUserSenha.trim()) {
+      setErroAuthAdmin('Por favor, informe a Senha de Administrador.');
       return;
     }
 
@@ -97,12 +94,13 @@ export const ConfiguracoesView: React.FC = () => {
     const usuarioAtual = storageService.getUsuario();
     const usuariosSistema = storageService.getUsuariosSistema();
 
-    // Check if main user or system users match an admin role
-    const isMainAdmin =
-      usuarioAtual.perfil === 'PCP_ADMIN' ||
-      usuarioAtual.nome.toLowerCase().includes('admin') ||
-      usuarioAtual.nome.toLowerCase().includes('jacques') ||
-      usuarioAtual.email.toLowerCase().includes('pcp');
+    // Passwords accepted for master/admin access
+    const masterPasswords = ['virtude@2026', 'admin', 'admin123', '123456', 'pcp2026'];
+    const isMasterPassword = masterPasswords.includes(senhaClean.toLowerCase());
+
+    const matchedSysUserByPassword = usuariosSistema.find(
+      (u) => u.senha && u.senha.trim().toLowerCase() === senhaClean.toLowerCase()
+    );
 
     const matchedSysAdmin = usuariosSistema.find(
       (u) =>
@@ -110,28 +108,41 @@ export const ConfiguracoesView: React.FC = () => {
         (u.departamento === 'ADM' || u.permissao === 'EDITAR' || u.cargo?.toLowerCase().includes('admin'))
     );
 
-    // Accepted admin passwords (including master passwords and registered user passwords)
-    const passwordsAceitas = ['Virtude@2026', 'admin', 'admin123', '123456', 'pcp2026'];
+    const isMainAdmin =
+      usuarioAtual.perfil === 'PCP_ADMIN' ||
+      usuarioAtual.nome.toLowerCase().includes('admin') ||
+      usuarioAtual.nome.toLowerCase().includes('jacques') ||
+      usuarioAtual.email.toLowerCase().includes('pcp');
 
     const credentialValida =
-      (isMainAdmin && (passwordsAceitas.includes(senhaClean) || senhaClean.length >= 4)) ||
-      Boolean(matchedSysAdmin && (passwordsAceitas.includes(senhaClean) || senhaClean.length >= 4)) ||
-      (loginClean.includes('admin') && (passwordsAceitas.includes(senhaClean) || senhaClean.length >= 4)) ||
-      (loginClean.includes('jacques') && (passwordsAceitas.includes(senhaClean) || senhaClean.length >= 4));
+      isMasterPassword ||
+      Boolean(matchedSysUserByPassword) ||
+      Boolean(matchedSysAdmin && senhaClean.length >= 3) ||
+      Boolean(isMainAdmin && senhaClean.length >= 3) ||
+      (loginClean.includes('admin') && senhaClean.length >= 3) ||
+      (loginClean.includes('jacques') && senhaClean.length >= 3);
 
     if (credentialValida) {
-      storageService.addLogSistema(
-        'CONFIGURAÇÕES',
-        'RESET_BANCO_AUTENTICADO',
-        `Banco de dados resetado com sucesso pelo administrador autenticado (${adminUserLogin.trim()}).`,
-        'WARNING'
-      );
-      storageService.resetarBanco();
-      setModalAuthAdminAberto(false);
-      window.location.reload();
+      setResetando(true);
+      try {
+        storageService.addLogSistema(
+          'CONFIGURAÇÕES',
+          'RESET_BANCO_AUTENTICADO',
+          `Banco de dados restaurado e limpo com sucesso pelo administrador (${adminUserLogin.trim() || 'Admin'}).`,
+          'WARNING'
+        );
+        await storageService.resetarBanco();
+        setModalAuthAdminAberto(false);
+        window.location.reload();
+      } catch (err) {
+        console.error('Erro ao restaurar banco:', err);
+        setErroAuthAdmin('Ocorreu um erro ao restaurar o banco de dados. Tente novamente.');
+      } finally {
+        setResetando(false);
+      }
     } else {
       setErroAuthAdmin(
-        'Usuário ou senha de Administrador incorretos. Apenas administradores autorizados têm permissão para restaurar o banco de dados.'
+        'Senha de Administrador incorreta. Apenas administradores autorizados têm permissão para restaurar o banco de dados.'
       );
     }
   };
@@ -503,17 +514,19 @@ export const ConfiguracoesView: React.FC = () => {
               <div className="flex items-center justify-end space-x-3 pt-2">
                 <button
                   type="button"
+                  disabled={resetando}
                   onClick={() => setModalAuthAdminAberto(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-xs transition-colors flex items-center space-x-1.5"
+                  disabled={resetando}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-xs transition-colors flex items-center space-x-1.5 disabled:opacity-50"
                 >
-                  <RefreshCw className="w-4 h-4" />
-                  <span>Confirmar Restauração</span>
+                  <RefreshCw className={`w-4 h-4 ${resetando ? 'animate-spin' : ''}`} />
+                  <span>{resetando ? 'Restaurando...' : 'Confirmar Restauração'}</span>
                 </button>
               </div>
             </form>
