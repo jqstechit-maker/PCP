@@ -40,7 +40,7 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
 
   // Pagination
   const [paginaAtual, setPaginaAtual] = useState<number>(1);
-  const itensPorPagina = 8;
+  const [itensPorPagina, setItensPorPagina] = useState<number>(25);
 
   // Sorting
   const [campoOrdenacao, setCampoOrdenacao] =
@@ -478,10 +478,27 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
         </div>
 
         {/* Pagination Bar */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-          <span>
-            Mostrando {opsPaginadas.length} de {opsOrdenadas.length} OPs
-          </span>
+        <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex items-center space-x-3">
+            <span>
+              Mostrando {opsPaginadas.length} de {opsOrdenadas.length} OPs
+            </span>
+            <div className="flex items-center space-x-1.5">
+              <span className="text-[11px] text-slate-400 dark:text-slate-500">Exibir:</span>
+              <select
+                value={itensPorPagina}
+                onChange={(e) => {
+                  setItensPorPagina(Number(e.target.value));
+                  setPaginaAtual(1);
+                }}
+                className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-slate-700 dark:text-slate-200 font-bold text-xs focus:outline-none focus:border-blue-500"
+              >
+                <option value={25}>25 OPs</option>
+                <option value={50}>50 OPs</option>
+                <option value={100}>100 OPs</option>
+              </select>
+            </div>
+          </div>
 
           <div className="flex items-center space-x-2">
             <button
@@ -497,7 +514,7 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
             <button
               disabled={paginaAtual === totalPaginas}
               onClick={() => setPaginaAtual((p) => Math.min(totalPaginas, p + 1))}
-              className="px-3 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 rounded-lg transition-colors"
+              className="px-3 py-1 bg-white border border-slate-200 dark:bg-slate-800 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 rounded-lg transition-colors"
             >
               Próxima
             </button>
