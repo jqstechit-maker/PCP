@@ -10,6 +10,7 @@ import {
   INITIAL_USUARIOS_SISTEMA,
 } from '../data/mockData';
 import {
+  ApontamentoProducao,
   Cliente,
   ConfiguracoesSistema,
   IndicadoresKpi,
@@ -221,6 +222,19 @@ class StorageService {
     return true;
   }
 
+  public isAdmin(): boolean {
+    const usuario = this.getUsuarioSessao() || this.getUsuario();
+    if (!usuario) return false;
+    return (
+      usuario.perfil === 'PCP_ADMIN' ||
+      usuario.departamento === 'ADM' ||
+      usuario.nome?.toLowerCase().includes('admin') ||
+      usuario.nome?.toLowerCase().includes('jacques') ||
+      usuario.cargo?.toLowerCase().includes('admin') ||
+      usuario.cargo?.toLowerCase().includes('gerente')
+    );
+  }
+
   public saveOps(ops: OrdemProducao[]): void {
     if (!this.podeEditar()) {
       console.warn('Operação bloqueada: Usuário com permissão de Somente Leitura.');
@@ -327,9 +341,9 @@ class StorageService {
             id: `ped-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
             pedidoNumber: op.pedidoNumber.toUpperCase().trim(),
             cliente: op.cliente || 'Cliente Indefinido',
-            dataPedido: op.dataProgramada || new Date().toISOString().substring(0, 10),
+            dataPedido: op.dataPedido || op.dataProgramada || new Date().toISOString().substring(0, 10),
             dataPrevisaoEntrega: op.dataEntrega || new Date().toISOString().substring(0, 10),
-            status: op.status === 'FINALIZADO' ? 'CONCLUIDO' : op.status === 'ATRASADO' ? 'PENDENTE' : 'EM_PRODUCAO',
+            status: op.status === 'FINALIZADO' ? 'CONCLUIDO' : (op.status === 'AGUARDANDO' || (op.quantidadeProduzida || 0) === 0) ? 'PENDENTE' : 'EM_PRODUCAO',
             totalItens: op.quantidade || 0,
             totalProduzido: op.quantidadeProduzida || 0,
             ops: [op.opNumber],
@@ -343,7 +357,21 @@ class StorageService {
           }
           ped.totalItens = (ped.totalItens || 0) + (op.quantidade || 0);
           ped.totalProduzido = (ped.totalProduzido || 0) + (op.quantidadeProduzida || 0);
+          if (op.quantidade) {
+            ped.valorTotal = (ped.valorTotal || 0) + (op.quantidade * 48.50);
+          }
         }
+      }
+    });
+
+    // Determinar status exato do pedido consolidado
+    pedidosMap.forEach((ped) => {
+      if (ped.totalItens > 0 && ped.totalProduzido >= ped.totalItens) {
+        ped.status = 'CONCLUIDO';
+      } else if (ped.totalProduzido > 0) {
+        ped.status = 'EM_PRODUCAO';
+      } else {
+        ped.status = 'PENDENTE';
       }
     });
 
@@ -880,7 +908,8 @@ class StorageService {
     opId: string,
     novoStatus: StatusProducao,
     qtdProduzidaAdicional?: number,
-    observacoes?: string
+    observacoes?: string,
+    operadorNome?: string
   ): OrdemProducao {
     if (!this.podeEditar()) {
       throw new Error('Permissão negada: Usuário com perfil de Somente Leitura.');
@@ -891,6 +920,8 @@ class StorageService {
 
     const op = ops[index];
     const statusAntigo = op.status;
+    const qtdApontada = Math.max(0, Number(qtdProduzidaAdicional) || 0);
+
     op.status = novoStatus;
     op.alteradoEm = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
@@ -898,10 +929,10 @@ class StorageService {
       op.observacoes = observacoes;
     }
 
-    if (qtdProduzidaAdicional && qtdProduzidaAdicional > 0) {
+    if (qtdApontada > 0) {
       op.quantidadeProduzida = Math.min(
         op.quantidade,
-        op.quantidadeProduzida + qtdProduzidaAdicional
+        (op.quantidadeProduzida || 0) + qtdApontada
       );
     }
 
@@ -916,13 +947,38 @@ class StorageService {
       op.dataInicioReal = new Date().toISOString().replace('T', ' ').substring(0, 16);
     }
 
+    if (op.quantidade > 0 && novoStatus !== 'FINALIZADO') {
+      op.eficiencia = Math.round((op.quantidadeProduzida / op.quantidade) * 100);
+    }
+
+    // Registrar histórico do apontamento na OP
+    const usuarioLogado = this.getUsuarioSessao() || this.getUsuario();
+    const nomeOperador = operadorNome?.trim() || usuarioLogado.nome || 'Operador';
+
+    const novoApontamento: ApontamentoProducao = {
+      id: `apont-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      dataHora: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      statusAnterior: statusAntigo,
+      novoStatus: novoStatus,
+      quantidadeApontada: qtdApontada,
+      quantidadeTotalApos: op.quantidadeProduzida,
+      operador: nomeOperador,
+      observacoes: observacoes?.trim() || undefined,
+    };
+
+    if (!Array.isArray(op.apontamentos)) {
+      op.apontamentos = [];
+    }
+    op.apontamentos.unshift(novoApontamento);
+
     ops[index] = op;
     this.saveOps(ops);
+    this.syncDerivadosComOps();
 
     this.addLogSistema(
-      'PROGRAMAÇÃO',
-      'ALTERAÇÃO_STATUS',
-      `OP ${op.opNumber} (${op.cliente}) alterada de ${statusAntigo} para ${novoStatus}. Qtd produções: ${op.quantidadeProduzida}/${op.quantidade}`,
+      'MES_APONTAMENTO',
+      'APONTAMENTO_STATUS',
+      `OP ${op.opNumber} (${op.cliente}): status alterado de ${statusAntigo} para ${novoStatus}. Apontado: ${qtdApontada} un (Total acumulado: ${op.quantidadeProduzida}/${op.quantidade}). Operador: ${nomeOperador}`,
       novoStatus === 'ATRASADO' ? 'WARNING' : 'INFO'
     );
 

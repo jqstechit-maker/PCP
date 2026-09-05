@@ -253,6 +253,21 @@ class ExcelService {
               'PEDIDO VENDA',
             ]);
 
+            const dataPedidoRaw = getColVal([
+              'DATA DO PEDIDO',
+              'DATA PEDIDO',
+              'DATA_PEDIDO',
+              'DATA PEDIDO DE VENDA',
+              'DATA DO PEDIDO DE VENDA',
+              'DATA EMISSAO',
+              'DATA EMISSÃO',
+              'DATA_EMISSAO',
+              'EMISSAO',
+              'EMISSÃO',
+              'DT PEDIDO',
+              'DT_PEDIDO',
+            ]);
+
             const cliente = getCol([
               'CLIENTE',
               'NOME_CLIENTE',
@@ -450,6 +465,7 @@ class ExcelService {
               opNumber: opNumber.toUpperCase(),
               empresaId,
               pedidoNumber: pedidoNumber ? pedidoNumber.toUpperCase() : 'PED-VAR',
+              dataPedido: this.normalizarData(dataPedidoRaw) || undefined,
               cliente: cliente || 'Cliente Indefinido',
               desenho: desenho || '',
               produto: produto || 'Big Bag Standard',
@@ -669,11 +685,12 @@ class ExcelService {
       'O.P': op.opNumber,
       'ID.': op.empresaId || 'V',
       'PEDIDO': op.pedidoNumber,
+      'DATA DO PEDIDO': op.dataPedido || '-',
       'CLIENTE': op.cliente,
       'DESENHO': op.desenho || '-',
       'PRODUTO': op.produto,
       'MODELO': op.modelo,
-      'DATA PROGAMADA': op.dataProgramada,
+      'DATA PROGRAMADA/ENTREGA': op.dataProgramada,
       'STATUS DO PROCESSO': op.statusProcesso || op.status,
       'DATA CONFEC.': op.dataConfec || op.dataEntrega || '-',
       'QUANTIDADE PRODUZIDA': op.quantidadeProduzida || op.quantidade,

@@ -22,10 +22,11 @@ import {
   TrendingUp,
   Zap,
 } from 'lucide-react';
-import React from 'react';
+import React, { useState } from 'react';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import { storageService } from '../../services/storageService';
 import { OrdemProducao, StatusProducao } from '../../types';
+import { ModalApontamentoProducao } from '../producao/ModalApontamentoProducao';
 
 ChartJS.register(
   CategoryScale,
@@ -46,8 +47,10 @@ interface DashboardViewProps {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavegarProgramacao,
-  onAvancarStatusOp,
 }) => {
+  const [opParaApontamento, setOpParaApontamento] = useState<OrdemProducao | null>(null);
+  const [versao, setVersao] = useState<number>(0);
+
   const kpis = storageService.calcularKpis();
   const ops = storageService.getOps();
 
@@ -273,21 +276,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     Progresso: {op.quantidadeProduzida}/{op.quantidade}
                   </span>
                   <button
-                    onClick={() =>
-                      onAvancarStatusOp(
-                        op.id,
-                        op.status === 'AGUARDANDO'
-                          ? 'CORTE'
-                          : op.status === 'CORTE'
-                          ? 'PREPARAÇÃO'
-                          : op.status === 'PREPARAÇÃO'
-                          ? 'CONFECÇÃO'
-                          : 'FINALIZADO'
-                      )
-                    }
-                    className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-medium rounded-lg transition-colors"
+                    onClick={() => setOpParaApontamento(op)}
+                    className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-bold rounded-lg transition-colors shadow-xs"
+                    title="Apontar Quantidade e Avançar Etapa"
                   >
-                    Avançar Etapa
+                    Apontar & Avançar
                   </button>
                 </div>
               </div>
@@ -499,6 +492,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal de Apontamento Obrigatório ao Avançar Status pelo Dashboard */}
+      {opParaApontamento && (
+        <ModalApontamentoProducao
+          op={opParaApontamento}
+          statusDestinoInicial={
+            opParaApontamento.status === 'AGUARDANDO'
+              ? 'CORTE'
+              : opParaApontamento.status === 'CORTE'
+              ? 'PREPARAÇÃO'
+              : opParaApontamento.status === 'PREPARAÇÃO'
+              ? 'CONFECÇÃO'
+              : 'FINALIZADO'
+          }
+          aoFechar={() => setOpParaApontamento(null)}
+          aoConfirmar={(opId, novoStatus, quantidadeApontada, observacoes, operador) => {
+            storageService.atualizarStatusOp(
+              opId,
+              novoStatus,
+              quantidadeApontada,
+              observacoes,
+              operador
+            );
+            setVersao((v) => v + 1);
+            setOpParaApontamento(null);
+          }}
+          titulo="Apontamento de Produção & Avanço de Etapa"
+        />
+      )}
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import {
   ArrowUpDown,
   CheckCircle,
+  ClipboardCheck,
   Download,
   Edit2,
   FileSpreadsheet,
@@ -15,6 +16,7 @@ import { excelService, formatarDataBR } from '../../services/excelService';
 import { pdfService } from '../../services/pdfService';
 import { storageService } from '../../services/storageService';
 import { OrdemProducao, StatusProducao } from '../../types';
+import { ModalApontamentoProducao } from '../producao/ModalApontamentoProducao';
 
 interface ProgramacaoViewProps {
   buscaGlobal: string;
@@ -45,11 +47,8 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
     useState<keyof OrdemProducao>('dataProgramada');
   const [direcaoOrdenacao, setDirecaoOrdenacao] = useState<'asc' | 'desc'>('asc');
 
-  // Modal State for OP Editing / Status Advance
+  // Modal State for OP Apontamento & Status
   const [opModal, setOpModal] = useState<OrdemProducao | null>(null);
-  const [modalNovoStatus, setModalNovoStatus] = useState<StatusProducao>('AGUARDANDO');
-  const [modalQtdAdicional, setModalQtdAdicional] = useState<number>(0);
-  const [modalObservacoes, setModalObservacoes] = useState<string>('');
 
   // Recalculate list whenever storage updates
   const recarregarDados = () => {
@@ -86,11 +85,39 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
     });
   }, [ops, buscaLocal, buscaGlobal, statusFiltro, clienteFiltro, prioridadeFiltro]);
 
+  // Map of Pedido dates for OPs where op.dataPedido might not be explicitly populated
+  const pedidosMap = useMemo(() => {
+    const map = new Map<string, string>();
+    try {
+      const pedidos = storageService.getPedidos();
+      pedidos.forEach((p) => {
+        if (p.pedidoNumber && p.dataPedido) {
+          map.set(p.pedidoNumber.toUpperCase().trim(), p.dataPedido);
+        }
+      });
+    } catch {
+      // ignore
+    }
+    return map;
+  }, [ops]);
+
+  const obterDataPedido = (op: OrdemProducao): string => {
+    if (op.dataPedido) return op.dataPedido;
+    const fromMap = op.pedidoNumber ? pedidosMap.get(op.pedidoNumber.toUpperCase().trim()) : undefined;
+    if (fromMap) return fromMap;
+    return op.dataProgramada || '-';
+  };
+
   // Sorted Array
   const opsOrdenadas = useMemo(() => {
     return [...opsFiltradas].sort((a, b) => {
-      const valA = a[campoOrdenacao];
-      const valB = b[campoOrdenacao];
+      let valA: any = a[campoOrdenacao];
+      let valB: any = b[campoOrdenacao];
+
+      if (campoOrdenacao === 'dataPedido') {
+        valA = obterDataPedido(a);
+        valB = obterDataPedido(b);
+      }
 
       if (valA === undefined) return 1;
       if (valB === undefined) return -1;
@@ -103,7 +130,7 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
         ? String(valA).localeCompare(String(valB))
         : String(valB).localeCompare(String(valA));
     });
-  }, [opsFiltradas, campoOrdenacao, direcaoOrdenacao]);
+  }, [opsFiltradas, campoOrdenacao, direcaoOrdenacao, pedidosMap]);
 
   // Paginated Output
   const totalPaginas = Math.ceil(opsOrdenadas.length / itensPorPagina) || 1;
@@ -122,27 +149,9 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
     }
   };
 
-  // Open Edit Modal
-  const abrirModalEditar = (op: OrdemProducao) => {
+  // Open Apontamento & Status Modal
+  const abrirModalApontamento = (op: OrdemProducao) => {
     setOpModal(op);
-    setModalNovoStatus(op.status);
-    setModalQtdAdicional(0);
-    setModalObservacoes(op.observacoes || '');
-  };
-
-  // Save Status / OP Change
-  const salvarEdicaoOp = () => {
-    if (!opModal) return;
-
-    storageService.atualizarStatusOp(
-      opModal.id,
-      modalNovoStatus,
-      modalQtdAdicional,
-      modalObservacoes
-    );
-
-    recarregarDados();
-    setOpModal(null);
   };
 
   // Status Badge Styling Helper - Clean Minimalism Theme
@@ -343,6 +352,15 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
                 <th className="p-3 text-center">ID</th>
                 <th className="p-3">Pedido</th>
                 <th
+                  onClick={() => alternarOrdenacao('dataPedido')}
+                  className="p-3 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors whitespace-nowrap"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Data do Pedido</span>
+                    <ArrowUpDown className="w-3 h-3" />
+                  </div>
+                </th>
+                <th
                   onClick={() => alternarOrdenacao('cliente')}
                   className="p-3 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
                 >
@@ -365,11 +383,14 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
                 </th>
                 <th
                   onClick={() => alternarOrdenacao('dataProgramada')}
-                  className="p-3 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+                  className="p-3 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors whitespace-nowrap"
                 >
                   <div className="flex items-center space-x-1">
-                    <span>Data Prog.</span>
-                    <ArrowUpDown className="w-3 h-3" />
+                    <div className="flex flex-col leading-tight">
+                      <span>Data Prog.</span>
+                      <span>Entrega</span>
+                    </div>
+                    <ArrowUpDown className="w-3 h-3 shrink-0" />
                   </div>
                 </th>
                 <th className="p-3 text-right">Ações</th>
@@ -394,6 +415,9 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
                         {(op.empresaId || 'V').toUpperCase().includes('L') ? 'L' : 'V'}
                       </td>
                       <td className="p-3 font-mono text-slate-500 dark:text-slate-400">{op.pedidoNumber}</td>
+                      <td className="p-3 font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        {formatarDataBR(obterDataPedido(op))}
+                      </td>
                       <td className="p-3 font-semibold text-slate-900 dark:text-slate-100 max-w-[180px] truncate">
                         {op.cliente}
                       </td>
@@ -420,17 +444,18 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
                       <td className="p-3 text-center font-bold text-slate-800 dark:text-slate-200">
                         {op.status === 'FINALIZADO' ? 100 : op.eficiencia}%
                       </td>
-                      <td className="p-3 font-mono text-slate-500 dark:text-slate-400">
+                      <td className="p-3 font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
                         {formatarDataBR(op.dataProgramada)}
                       </td>
                       <td className="p-3 text-right">
                         {podeEditar ? (
                           <button
-                            onClick={() => abrirModalEditar(op)}
-                            className="p-1.5 bg-slate-100 hover:bg-blue-600 hover:text-white dark:bg-slate-800 dark:hover:bg-blue-600 text-slate-600 dark:text-slate-300 rounded-lg transition-colors"
-                            title="Atualizar Status / OP"
+                            onClick={() => abrirModalApontamento(op)}
+                            className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500 hover:text-slate-950 text-amber-400 border border-amber-500/20 rounded-lg text-xs font-bold transition-all shadow-xs"
+                            title="Apontar Quantidade e Mudar Status"
                           >
-                            <Edit2 className="w-3.5 h-3.5" />
+                            <ClipboardCheck className="w-3.5 h-3.5" />
+                            <span>Apontar</span>
                           </button>
                         ) : (
                           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono italic">
@@ -443,7 +468,7 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
                 })
               ) : (
                 <tr>
-                  <td colSpan={10} className="p-8 text-center text-slate-400">
+                  <td colSpan={11} className="p-8 text-center text-slate-400">
                     Nenhuma Ordem de Produção encontrada com os filtros atuais.
                   </td>
                 </tr>
@@ -480,90 +505,24 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
         </div>
       </div>
 
-      {/* Status Advance & Edit Modal */}
+      {/* Modal de Apontamento Obrigatório para Mudança de Status */}
       {opModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 space-y-4 text-slate-100 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div>
-                <h3 className="text-base font-bold text-amber-400">
-                  Atualizar Ordem de Produção {opModal.opNumber}
-                </h3>
-                <p className="text-xs text-slate-400">{opModal.cliente}</p>
-              </div>
-              <button
-                onClick={() => setOpModal(null)}
-                className="text-slate-400 hover:text-slate-100 font-bold text-sm"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-slate-400 mb-1 font-semibold">
-                  Status Atual / Novo Status:
-                </label>
-                <select
-                  value={modalNovoStatus}
-                  onChange={(e) => setModalNovoStatus(e.target.value as StatusProducao)}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-amber-500"
-                >
-                  <option value="AGUARDANDO">AGUARDANDO</option>
-                  <option value="CORTE">CORTE (Corte do Tecido/Ráfia)</option>
-                  <option value="PREPARAÇÃO">PREPARAÇÃO (Montagem Alças/Dobras)</option>
-                  <option value="CONFECÇÃO">CONFECÇÃO (Costura Final)</option>
-                  <option value="FINALIZADO">FINALIZADO (Pronto/Expedição)</option>
-                  <option value="ATRASADO">ATRASADO (Alerta de Prazo)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1 font-semibold">
-                  Adicionar Quantidade Produzida Neste Apontamento:
-                </label>
-                <input
-                  type="number"
-                  value={modalQtdAdicional}
-                  onChange={(e) => setModalQtdAdicional(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-amber-500"
-                  placeholder="Ex: 50"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Atualmente produzido: {opModal.quantidadeProduzida} de {opModal.quantidade} unidades.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1 font-semibold">
-                  Observações PCP / Turno:
-                </label>
-                <textarea
-                  rows={3}
-                  value={modalObservacoes}
-                  onChange={(e) => setModalObservacoes(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-amber-500"
-                  placeholder="Insira notas do operador ou observações do PCP..."
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-800">
-              <button
-                onClick={() => setOpModal(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={salvarEdicaoOp}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs transition-colors shadow-md"
-              >
-                Salvar Alterações
-              </button>
-            </div>
-          </div>
-        </div>
+        <ModalApontamentoProducao
+          op={opModal}
+          aoFechar={() => setOpModal(null)}
+          aoConfirmar={(opId, novoStatus, quantidadeApontada, observacoes, operador) => {
+            storageService.atualizarStatusOp(
+              opId,
+              novoStatus,
+              quantidadeApontada,
+              observacoes,
+              operador
+            );
+            recarregarDados();
+            setOpModal(null);
+          }}
+          titulo="Apontamento de Produção & Status da Programação"
+        />
       )}
     </div>
   );

@@ -8,11 +8,23 @@ export type StatusProducao =
 
 export type PrioridadeOp = 'BAIXA' | 'MÉDIA' | 'ALTA' | 'URGENTE';
 
+export interface ApontamentoProducao {
+  id: string;
+  dataHora: string;
+  statusAnterior: StatusProducao;
+  novoStatus: StatusProducao;
+  quantidadeApontada: number;
+  quantidadeTotalApos: number;
+  operador: string;
+  observacoes?: string;
+}
+
 export interface OrdemProducao {
   id: string;
   opNumber: string; // Ex: OP-2026-089
   empresaId?: string; // Ex: 'L' (LAELSON) ou 'V' (VIRTUDE)
   pedidoNumber: string; // Ex: PED-1045
+  dataPedido?: string; // Ex: YYYY-MM-DD (Data do pedido)
   cliente: string;
   desenho?: string; // Desenho técnico
   produto: string; // Ex: Big Bag Travado 90x90x120cm
@@ -35,6 +47,7 @@ export interface OrdemProducao {
   tecidoGrm?: number; // Gramatura g/m²
   tempoEstimadoHoras?: number;
   alteradoEm: string;
+  apontamentos?: ApontamentoProducao[];
 }
 
 export interface Pedido {

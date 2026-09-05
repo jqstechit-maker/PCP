@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   CheckCircle,
+  ClipboardCheck,
   Clock,
   Factory,
   Layers,
@@ -10,15 +11,16 @@ import {
 import React, { useState } from 'react';
 import { storageService } from '../../services/storageService';
 import { OrdemProducao, StatusProducao } from '../../types';
+import { ModalApontamentoProducao } from './ModalApontamentoProducao';
 
 interface ProducaoKanbanViewProps {
-  onAvancarStatusOp: (opId: string, novoStatus: StatusProducao) => void;
+  onAvancarStatusOp?: (opId: string, novoStatus: StatusProducao) => void;
 }
 
-export const ProducaoKanbanView: React.FC<ProducaoKanbanViewProps> = ({
-  onAvancarStatusOp,
-}) => {
+export const ProducaoKanbanView: React.FC<ProducaoKanbanViewProps> = () => {
   const [ops, setOps] = useState<OrdemProducao[]>(() => storageService.getOps());
+  const [opParaApontamento, setOpParaApontamento] = useState<OrdemProducao | null>(null);
+  const [statusDestinoDesejado, setStatusDestinoDesejado] = useState<StatusProducao | undefined>(undefined);
 
   const usuarioLogado = storageService.getUsuarioSessao() || storageService.getUsuario();
   const podeEditar = usuarioLogado.permissao === 'EDITAR' && usuarioLogado.perfil !== 'VISUALIZADOR';
@@ -27,8 +29,26 @@ export const ProducaoKanbanView: React.FC<ProducaoKanbanViewProps> = ({
     setOps(storageService.getOps());
   };
 
-  const handleAvancar = (id: string, proximo: StatusProducao) => {
-    onAvancarStatusOp(id, proximo);
+  const handleIniciarApontamento = (op: OrdemProducao, proximoStatus?: StatusProducao) => {
+    setOpParaApontamento(op);
+    setStatusDestinoDesejado(proximoStatus);
+  };
+
+  const handleConfirmarApontamento = (
+    opId: string,
+    novoStatus: StatusProducao,
+    quantidadeApontada: number,
+    observacoes?: string,
+    operador?: string
+  ) => {
+    storageService.atualizarStatusOp(
+      opId,
+      novoStatus,
+      quantidadeApontada,
+      observacoes,
+      operador
+    );
+    setOpParaApontamento(null);
     recarregar();
   };
 
@@ -79,8 +99,8 @@ export const ProducaoKanbanView: React.FC<ProducaoKanbanViewProps> = ({
     },
     {
       id: 'FINALIZADO',
-      titulo: '5. Expedição / Finalizado',
-      subtitulo: 'Pronto para Envio ao Cliente',
+      titulo: '5. Finalizado',
+      subtitulo: 'Aguardando Logística',
       icon: CheckCircle,
       cor: 'bg-emerald-500/10 text-emerald-400',
       borderCor: 'border-emerald-500/30',
@@ -133,6 +153,43 @@ export const ProducaoKanbanView: React.FC<ProducaoKanbanViewProps> = ({
               <div className="my-3 space-y-3 flex-1 overflow-y-auto max-h-[550px] pr-1">
                 {opsColuna.length > 0 ? (
                   opsColuna.map((op) => {
+                    // Coluna 5: Finalizado -> layout limpo contendo estritamente: número do pedido, cliente e quantidade produzida
+                    if (col.id === 'FINALIZADO') {
+                      return (
+                        <div
+                          key={op.id}
+                          className="bg-slate-950 border border-emerald-500/30 p-3.5 rounded-xl space-y-2.5 transition-all shadow-sm"
+                        >
+                          <div>
+                            <span className="text-[10px] text-slate-500 block uppercase font-semibold">
+                              Número do Pedido
+                            </span>
+                            <span className="font-mono font-bold text-amber-400 text-sm">
+                              {op.pedidoNumber || op.opNumber}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] text-slate-500 block uppercase font-semibold">
+                              Cliente
+                            </span>
+                            <p className="text-xs font-semibold text-slate-100 truncate" title={op.cliente}>
+                              {op.cliente}
+                            </p>
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-900 flex items-center justify-between">
+                            <span className="text-[10px] text-slate-400 font-semibold uppercase">
+                              Quantidade Produzida
+                            </span>
+                            <span className="font-mono font-bold text-emerald-400 text-xs">
+                              {op.quantidadeProduzida} un
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     const pct = Math.round(
                       (op.quantidadeProduzida / op.quantidade) * 100
                     );
@@ -177,14 +234,18 @@ export const ProducaoKanbanView: React.FC<ProducaoKanbanViewProps> = ({
                           </div>
                         </div>
 
-                        {col.proximaEtapa && podeEditar && (
-                          <button
-                            onClick={() => handleAvancar(op.id, col.proximaEtapa!)}
-                            className="w-full mt-2 py-1.5 bg-amber-500/10 hover:bg-amber-500 hover:text-slate-950 text-amber-400 text-[10px] font-bold rounded-lg border border-amber-500/20 flex items-center justify-center space-x-1 transition-all"
-                          >
-                            <span>Avançar para {col.proximaEtapa}</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </button>
+                        {podeEditar && col.proximaEtapa && (
+                          <div className="pt-2">
+                            <button
+                              onClick={() => handleIniciarApontamento(op, col.proximaEtapa)}
+                              className="w-full py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-bold rounded-lg flex items-center justify-center space-x-1.5 transition-all shadow-xs"
+                              title={`Apontar quantidade e avançar para ${col.proximaEtapa}`}
+                            >
+                              <ClipboardCheck className="w-3 h-3" />
+                              <span>Avançar para {col.proximaEtapa} (Apontar)</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          </div>
                         )}
                       </div>
                     );
@@ -199,6 +260,17 @@ export const ProducaoKanbanView: React.FC<ProducaoKanbanViewProps> = ({
           );
         })}
       </div>
+
+      {/* Modal de Apontamento Obrigatório para Mudança de Status */}
+      {opParaApontamento && (
+        <ModalApontamentoProducao
+          op={opParaApontamento}
+          statusDestinoInicial={statusDestinoDesejado}
+          aoFechar={() => setOpParaApontamento(null)}
+          aoConfirmar={handleConfirmarApontamento}
+          titulo="Apontamento de Produção - Chão de Fábrica (MES)"
+        />
+      )}
     </div>
   );
 };
