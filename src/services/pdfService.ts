@@ -11,8 +11,9 @@ export class PdfService {
     subtitulo: string,
     ops: OrdemProducao[],
     kpis: IndicadoresKpi
-  ): void {
-    const doc = new jsPDF('portrait', 'mm', 'a4');
+  ): any {
+    const PDFClass = typeof jsPDF === 'function' ? jsPDF : ((jsPDF as any).jsPDF || (jsPDF as any).default);
+    const doc = new PDFClass('portrait', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
 
     // --- Header Section ---
@@ -173,7 +174,10 @@ export class PdfService {
       );
     }
 
-    doc.save(`Relatorio_Producao_Virtude_BigBags_${Date.now()}.pdf`);
+    if (typeof window !== 'undefined') {
+      doc.save(`Relatorio_Producao_Virtude_BigBags_${Date.now()}.pdf`);
+    }
+    return doc;
   }
 }
 

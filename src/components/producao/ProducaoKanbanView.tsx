@@ -6,9 +6,10 @@ import {
   Factory,
   Layers,
   Scissors,
+  Shield,
   Wrench,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { storageService } from '../../services/storageService';
 import { OrdemProducao, StatusProducao } from '../../types';
 import { ModalApontamentoProducao } from './ModalApontamentoProducao';
@@ -21,13 +22,21 @@ export const ProducaoKanbanView: React.FC<ProducaoKanbanViewProps> = () => {
   const [ops, setOps] = useState<OrdemProducao[]>(() => storageService.getOps());
   const [opParaApontamento, setOpParaApontamento] = useState<OrdemProducao | null>(null);
   const [statusDestinoDesejado, setStatusDestinoDesejado] = useState<StatusProducao | undefined>(undefined);
-
-  const usuarioLogado = storageService.getUsuarioSessao() || storageService.getUsuario();
-  const podeEditar = usuarioLogado.permissao === 'EDITAR' && usuarioLogado.perfil !== 'VISUALIZADOR';
+  const [podeEditar, setPodeEditar] = useState<boolean>(() => storageService.podeEditar());
 
   const recarregar = () => {
     setOps(storageService.getOps());
+    setPodeEditar(storageService.podeEditar());
   };
+
+  useEffect(() => {
+    window.addEventListener('virtude_data_synced', recarregar);
+    window.addEventListener('storage', recarregar);
+    return () => {
+      window.removeEventListener('virtude_data_synced', recarregar);
+      window.removeEventListener('storage', recarregar);
+    };
+  }, []);
 
   const handleIniciarApontamento = (op: OrdemProducao, proximoStatus?: StatusProducao) => {
     setOpParaApontamento(op);
@@ -110,14 +119,26 @@ export const ProducaoKanbanView: React.FC<ProducaoKanbanViewProps> = () => {
   return (
     <div className="space-y-6 pb-8">
       {/* Title */}
-      <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg">
-        <h2 className="text-xl font-bold text-slate-100 flex items-center space-x-2">
-          <Factory className="w-5 h-5 text-amber-400" />
-          <span>Gestão Visual de Chão de Fábrica (Pipeline MES)</span>
-        </h2>
-        <p className="text-xs text-slate-400 mt-1">
-          Acompanhe o fluxo físico de transformação do Big Bag desde o corte da matéria-prima até a expedição final.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg">
+        <div>
+          <h2 className="text-xl font-bold text-slate-100 flex items-center space-x-2">
+            <Factory className="w-5 h-5 text-amber-400" />
+            <span>Gestão Visual de Chão de Fábrica (Pipeline MES)</span>
+          </h2>
+          <p className="text-xs text-slate-400 mt-1">
+            Acompanhe o fluxo físico de transformação do Big Bag desde o corte da matéria-prima até a expedição final.
+          </p>
+        </div>
+
+        {!podeEditar && (
+          <div className="px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center space-x-2 text-xs text-amber-400 shrink-0">
+            <Shield className="w-4 h-4 text-amber-400 shrink-0" />
+            <div className="leading-tight">
+              <span className="font-bold">Perfil de Visualização</span>
+              <p className="text-[10px] text-amber-400/80">Quadro em modo somente leitura &bull; Apontamentos desabilitados</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Kanban Pipeline Columns */}

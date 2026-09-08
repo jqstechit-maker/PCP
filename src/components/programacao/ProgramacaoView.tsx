@@ -7,11 +7,14 @@ import {
   FileSpreadsheet,
   FileText,
   Filter,
+  Layers,
   Plus,
   RefreshCw,
   Search,
+  Shield,
+  Upload,
 } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { excelService, formatarDataBR } from '../../services/excelService';
 import { pdfService } from '../../services/pdfService';
 import { storageService } from '../../services/storageService';
@@ -28,9 +31,21 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
   onAbrirImportador,
 }) => {
   const [ops, setOps] = useState<OrdemProducao[]>(() => storageService.getOps());
+  const [podeEditar, setPodeEditar] = useState<boolean>(() => storageService.podeEditar());
 
-  const usuarioLogado = storageService.getUsuarioSessao() || storageService.getUsuario();
-  const podeEditar = usuarioLogado.permissao === 'EDITAR' && usuarioLogado.perfil !== 'VISUALIZADOR';
+  // Listen to sync events
+  useEffect(() => {
+    const handleSync = () => {
+      setOps(storageService.getOps());
+      setPodeEditar(storageService.podeEditar());
+    };
+    window.addEventListener('virtude_data_synced', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('virtude_data_synced', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
 
   // Filter States
   const [statusFiltro, setStatusFiltro] = useState<string>('TODOS');
@@ -250,7 +265,8 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
               <span>Importar Planilha</span>
             </button>
           ) : (
-            <span className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold flex items-center space-x-1.5">
+            <span className="px-3 py-1.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-lg text-xs font-semibold flex items-center space-x-1.5">
+              <Shield className="w-3.5 h-3.5" />
               <span>Modo Somente Leitura</span>
             </span>
           )}
@@ -466,6 +482,32 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
                     </tr>
                   );
                 })
+              ) : ops.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="p-12 text-center text-slate-400">
+                    <div className="flex flex-col items-center justify-center space-y-3">
+                      <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-400">
+                        <Layers className="w-8 h-8" />
+                      </div>
+                      <h4 className="font-bold text-sm text-slate-200">
+                        Nenhuma Ordem de Produção Cadastrada
+                      </h4>
+                      <p className="text-xs text-slate-400 max-w-md">
+                        O banco de dados foi limpo e está pronto para o início da operação em produção.
+                        Importe sua planilha Excel de OPs ou cadastre novas ordens.
+                      </p>
+                      {podeEditar && (
+                        <button
+                          onClick={onAbrirImportador}
+                          className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center space-x-2"
+                        >
+                          <Upload className="w-4 h-4" />
+                          <span>Importar Planilha Excel de Produção</span>
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
               ) : (
                 <tr>
                   <td colSpan={11} className="p-8 text-center text-slate-400">

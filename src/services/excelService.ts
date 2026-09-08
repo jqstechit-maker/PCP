@@ -143,20 +143,53 @@ class ExcelService {
             return;
           }
 
-          const existingOps = storageService.getOps();
-          const opMap = new Map<string, OrdemProducao>();
-          existingOps.forEach((op) => opMap.set(op.opNumber.trim().toUpperCase(), op));
+          const resultado = this.processarLinhasExcel(rows, file.name);
+          resolve(resultado);
+        } catch (err: any) {
+          resolve({
+            sucesso: false,
+            mensagem: `Erro ao processar arquivo Excel: ${err.message || 'Formato inválido.'}`,
+            log: this.criarLogErro(file.name, err.message),
+            opsProcessadas: [],
+          });
+        }
+      };
 
-          let registrosNovos = 0;
-          let registrosAtualizados = 0;
-          let registrosSemAlteracao = 0;
-          let errosEncontrados = 0;
-          const detalhesErros: string[] = [];
+      reader.onerror = () => {
+        resolve({
+          sucesso: false,
+          mensagem: 'Falha na leitura do arquivo local.',
+          log: this.criarLogErro(file.name, 'Falha no leitor de arquivos'),
+          opsProcessadas: [],
+        });
+      };
 
-          const opsAtualizadas: OrdemProducao[] = [...existingOps];
+      reader.readAsArrayBuffer(file);
+    });
+  }
 
-          rows.forEach((row, index) => {
-            const linhaNum = index + 2; // Accounting for header row
+  /**
+   * Parses JSON rows directly into OPs and syncs with storage
+   */
+  public processarLinhasExcel(
+    rows: Record<string, any>[],
+    nomeArquivo: string = 'Planilha_PCP.xlsx'
+  ): ResultadoImportacaoExcel {
+    try {
+      const existingOps = storageService.getOps();
+    const opMap = new Map<string, OrdemProducao>();
+    existingOps.forEach((op) => opMap.set(op.opNumber.trim().toUpperCase(), op));
+
+    let registrosNovos = 0;
+    let registrosAtualizados = 0;
+    let registrosSemAlteracao = 0;
+    let errosEncontrados = 0;
+    const detalhesErros: string[] = [];
+
+    const opsAtualizadas: OrdemProducao[] = [...existingOps];
+
+    rows.forEach((row, index) => {
+      const linhaNum = index + 2; // Accounting for header row
 
             // Normalize and sanitize key lookup
             const sanitizeKey = (str: string): string => {
@@ -534,7 +567,7 @@ class ExcelService {
           const logObj: LogImportacao = {
             id: `imp-${Date.now()}`,
             dataHora: new Date().toISOString().replace('T', ' ').substring(0, 19),
-            nomeArquivo: file.name,
+            nomeArquivo: nomeArquivo || 'Planilha_PCP.xlsx',
             usuario: usuario.nome,
             registrosLidos: rows.length,
             registrosNovos,
@@ -552,37 +585,24 @@ class ExcelService {
           storageService.addLogSistema(
             'IMPORTADOR_EXCEL',
             'IMPORTACAO_CONCLUIDA',
-            `Importado ${file.name}: ${registrosNovos} novos, ${registrosAtualizados} atualizados, ${registrosSemAlteracao} sem alteração.`,
+            `Importado ${nomeArquivo}: ${registrosNovos} novos, ${registrosAtualizados} atualizados, ${registrosSemAlteracao} sem alteração.`,
             'SUCCESS'
           );
 
-          resolve({
+          return {
             sucesso: true,
             mensagem: `Planilha importada com sucesso! ${registrosNovos} novos registros, ${registrosAtualizados} atualizados.`,
             log: logObj,
             opsProcessadas: opsAtualizadas,
-          });
+          };
         } catch (err: any) {
-          resolve({
+          return {
             sucesso: false,
             mensagem: `Erro ao processar arquivo Excel: ${err.message || 'Formato inválido.'}`,
-            log: this.criarLogErro(file.name, err.message),
+            log: this.criarLogErro(nomeArquivo, err.message),
             opsProcessadas: [],
-          });
+          };
         }
-      };
-
-      reader.onerror = () => {
-        resolve({
-          sucesso: false,
-          mensagem: 'Falha na leitura do arquivo local.',
-          log: this.criarLogErro(file.name, 'Falha no leitor de arquivos'),
-          opsProcessadas: [],
-        });
-      };
-
-      reader.readAsArrayBuffer(file);
-    });
   }
 
   /**
@@ -680,7 +700,7 @@ class ExcelService {
   /**
    * Exports an array of OPs to Excel file download
    */
-  public exportarOpsParaExcel(ops: OrdemProducao[], filename: string = 'Relatorio_Programacao_Virtude_BigBags.xlsx'): void {
+  public exportarOpsParaExcel(ops: OrdemProducao[], filename: string = 'Relatorio_Programacao_Virtude_BigBags.xlsx'): any {
     const rows = ops.map((op) => ({
       'O.P': op.opNumber,
       'ID.': op.empresaId || 'V',
@@ -702,7 +722,10 @@ class ExcelService {
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Produção');
-    XLSX.writeFile(workbook, filename);
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      XLSX.writeFile(workbook, filename);
+    }
+    return workbook;
   }
 
   private criarLogErro(nomeArquivo: string, erroMsg: string): LogImportacao {

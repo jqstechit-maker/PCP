@@ -41,8 +41,59 @@ const STORAGE_KEYS = {
   TEMA: 'virtude_tema_v1',
 };
 
+const memoryFallback: Record<string, string> = {};
+const safeStorage = {
+  getItem(key: string): string | null {
+    try {
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        return localStorage.getItem(key);
+      }
+    } catch {}
+    return memoryFallback[key] ?? null;
+  },
+  setItem(key: string, value: string): void {
+    try {
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        localStorage.setItem(key, value);
+        return;
+      }
+    } catch {}
+    memoryFallback[key] = value;
+  },
+  removeItem(key: string): void {
+    try {
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        localStorage.removeItem(key);
+        return;
+      }
+    } catch {}
+    delete memoryFallback[key];
+  },
+  clear(): void {
+    try {
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        localStorage.clear();
+      }
+    } catch {}
+    Object.keys(memoryFallback).forEach((k) => delete memoryFallback[k]);
+  }
+};
+
 class StorageService {
   constructor() {
+    if (typeof window !== 'undefined') {
+      const isPurged = safeStorage.getItem('virtude_production_purged_v1');
+      if (!isPurged) {
+        safeStorage.removeItem(STORAGE_KEYS.OPS);
+        safeStorage.removeItem(STORAGE_KEYS.PEDIDOS);
+        safeStorage.removeItem(STORAGE_KEYS.CLIENTES);
+        safeStorage.removeItem(STORAGE_KEYS.PRODUTOS);
+        safeStorage.removeItem(STORAGE_KEYS.LOGS_IMPORTACAO);
+        safeStorage.removeItem(STORAGE_KEYS.LOGS_SISTEMA);
+        safeStorage.removeItem(STORAGE_KEYS.USUARIOS_SISTEMA);
+        safeStorage.setItem('virtude_production_purged_v1', 'true');
+      }
+    }
     this.initCloudSync();
     this.initMysqlSync();
   }
@@ -59,49 +110,49 @@ class StorageService {
     firebaseSyncService.initRealtimeListeners(
       (remoteOps) => {
         if (remoteOps) {
-          localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(remoteOps));
+          safeStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(remoteOps));
           this.dispatchSyncEvent();
         }
       },
       (remoteClientes) => {
         if (remoteClientes) {
-          localStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify(remoteClientes));
+          safeStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify(remoteClientes));
           this.dispatchSyncEvent();
         }
       },
       (remoteProdutos) => {
         if (remoteProdutos) {
-          localStorage.setItem(STORAGE_KEYS.PRODUTOS, JSON.stringify(remoteProdutos));
+          safeStorage.setItem(STORAGE_KEYS.PRODUTOS, JSON.stringify(remoteProdutos));
           this.dispatchSyncEvent();
         }
       },
       (remotePedidos) => {
         if (remotePedidos) {
-          localStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(remotePedidos));
+          safeStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(remotePedidos));
           this.dispatchSyncEvent();
         }
       },
       (remoteLogsImp) => {
         if (remoteLogsImp) {
-          localStorage.setItem(STORAGE_KEYS.LOGS_IMPORTACAO, JSON.stringify(remoteLogsImp));
+          safeStorage.setItem(STORAGE_KEYS.LOGS_IMPORTACAO, JSON.stringify(remoteLogsImp));
           this.dispatchSyncEvent();
         }
       },
       (remoteLogsSys) => {
         if (remoteLogsSys) {
-          localStorage.setItem(STORAGE_KEYS.LOGS_SISTEMA, JSON.stringify(remoteLogsSys));
+          safeStorage.setItem(STORAGE_KEYS.LOGS_SISTEMA, JSON.stringify(remoteLogsSys));
           this.dispatchSyncEvent();
         }
       },
       (remoteConfig) => {
         if (remoteConfig && remoteConfig.empresa) {
-          localStorage.setItem(STORAGE_KEYS.CONFIGURACOES, JSON.stringify(remoteConfig));
+          safeStorage.setItem(STORAGE_KEYS.CONFIGURACOES, JSON.stringify(remoteConfig));
           this.dispatchSyncEvent();
         }
       },
       (remoteUsers) => {
         if (remoteUsers) {
-          localStorage.setItem(STORAGE_KEYS.USUARIOS_SISTEMA, JSON.stringify(remoteUsers));
+          safeStorage.setItem(STORAGE_KEYS.USUARIOS_SISTEMA, JSON.stringify(remoteUsers));
           this.dispatchSyncEvent();
         }
       }
@@ -146,37 +197,37 @@ class StorageService {
       // 2. Load latest OPs from MySQL
       const remoteOps = await mysqlSyncService.fetchOps();
       if (remoteOps && remoteOps.length > 0) {
-        localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(remoteOps));
+        safeStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(remoteOps));
       }
 
       // 3. Load Pedidos
       const remotePedidos = await mysqlSyncService.fetchPedidos();
       if (remotePedidos && remotePedidos.length > 0) {
-        localStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(remotePedidos));
+        safeStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(remotePedidos));
       }
 
       // 4. Load Clientes
       const remoteClientes = await mysqlSyncService.fetchClientes();
       if (remoteClientes && remoteClientes.length > 0) {
-        localStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify(remoteClientes));
+        safeStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify(remoteClientes));
       }
 
       // 5. Load Produtos
       const remoteProdutos = await mysqlSyncService.fetchProdutos();
       if (remoteProdutos && remoteProdutos.length > 0) {
-        localStorage.setItem(STORAGE_KEYS.PRODUTOS, JSON.stringify(remoteProdutos));
+        safeStorage.setItem(STORAGE_KEYS.PRODUTOS, JSON.stringify(remoteProdutos));
       }
 
       // 6. Load Configuracoes
       const remoteConfig = await mysqlSyncService.fetchConfiguracoes();
       if (remoteConfig && remoteConfig.empresa) {
-        localStorage.setItem(STORAGE_KEYS.CONFIGURACOES, JSON.stringify(remoteConfig));
+        safeStorage.setItem(STORAGE_KEYS.CONFIGURACOES, JSON.stringify(remoteConfig));
       }
 
       // 7. Load Usuarios Sistema
       const remoteUsers = await mysqlSyncService.fetchUsuariosSistema();
       if (remoteUsers && remoteUsers.length > 0) {
-        localStorage.setItem(STORAGE_KEYS.USUARIOS_SISTEMA, JSON.stringify(remoteUsers));
+        safeStorage.setItem(STORAGE_KEYS.USUARIOS_SISTEMA, JSON.stringify(remoteUsers));
       }
 
       this.dispatchSyncEvent();
@@ -188,7 +239,7 @@ class StorageService {
 
   // --- Initialization & Storage Getters ---
   public getOps(): OrdemProducao[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.OPS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.OPS);
     if (!raw) {
       return [];
     }
@@ -205,7 +256,7 @@ class StorageService {
           (op) => !['op-101', 'op-102', 'op-103', 'op-104', 'op-105', 'op-106', 'op-107'].includes(op.id)
         );
       if (cleaned.length !== parsed.length) {
-        localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(cleaned));
+        safeStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(cleaned));
       }
       return cleaned;
     } catch {
@@ -246,7 +297,7 @@ class StorageService {
       }
       return op;
     });
-    localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(opsAjustadas));
+    safeStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(opsAjustadas));
     firebaseSyncService.syncOpsToCloud(opsAjustadas);
     mysqlSyncService.syncOpsToMysql(opsAjustadas);
     this.dispatchSyncEvent();
@@ -381,7 +432,7 @@ class StorageService {
   }
 
   private getPedidosDirect(): Pedido[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.PEDIDOS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.PEDIDOS);
     if (!raw) return [];
     try {
       const parsed: Pedido[] = JSON.parse(raw);
@@ -407,14 +458,14 @@ class StorageService {
       console.warn('Operação bloqueada: Usuário com permissão de Somente Leitura.');
       return;
     }
-    localStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(pedidos));
+    safeStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(pedidos));
     firebaseSyncService.syncPedidosToCloud(pedidos);
     mysqlSyncService.syncPedidosToMysql(pedidos);
     this.dispatchSyncEvent();
   }
 
   private getClientesDirect(): Cliente[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.CLIENTES);
+    const raw = safeStorage.getItem(STORAGE_KEYS.CLIENTES);
     if (!raw) return [];
     try {
       const parsed: Cliente[] = JSON.parse(raw);
@@ -489,14 +540,14 @@ class StorageService {
       console.warn('Operação bloqueada: Usuário com permissão de Somente Leitura.');
       return;
     }
-    localStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify(clientes));
+    safeStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify(clientes));
     firebaseSyncService.syncClientesToCloud(clientes);
     mysqlSyncService.syncClientesToMysql(clientes);
     this.dispatchSyncEvent();
   }
 
   private getProdutosDirect(): Produto[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.PRODUTOS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.PRODUTOS);
     if (!raw) return [];
     try {
       const parsed: Produto[] = JSON.parse(raw);
@@ -522,14 +573,14 @@ class StorageService {
       console.warn('Operação bloqueada: Usuário com permissão de Somente Leitura.');
       return;
     }
-    localStorage.setItem(STORAGE_KEYS.PRODUTOS, JSON.stringify(produtos));
+    safeStorage.setItem(STORAGE_KEYS.PRODUTOS, JSON.stringify(produtos));
     firebaseSyncService.syncProdutosToCloud(produtos);
     mysqlSyncService.syncProdutosToMysql(produtos);
     this.dispatchSyncEvent();
   }
 
   public getLogsImportacao(): LogImportacao[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.LOGS_IMPORTACAO);
+    const raw = safeStorage.getItem(STORAGE_KEYS.LOGS_IMPORTACAO);
     if (!raw) {
       return [];
     }
@@ -537,7 +588,7 @@ class StorageService {
       const parsed: LogImportacao[] = JSON.parse(raw);
       const cleaned = parsed.filter((log) => !['imp-001', 'imp-002'].includes(log.id));
       if (cleaned.length !== parsed.length) {
-        localStorage.setItem(STORAGE_KEYS.LOGS_IMPORTACAO, JSON.stringify(cleaned));
+        safeStorage.setItem(STORAGE_KEYS.LOGS_IMPORTACAO, JSON.stringify(cleaned));
       }
       return cleaned;
     } catch {
@@ -546,14 +597,14 @@ class StorageService {
   }
 
   public saveLogsImportacao(logs: LogImportacao[]): void {
-    localStorage.setItem(STORAGE_KEYS.LOGS_IMPORTACAO, JSON.stringify(logs));
+    safeStorage.setItem(STORAGE_KEYS.LOGS_IMPORTACAO, JSON.stringify(logs));
     firebaseSyncService.syncLogsImportacaoToCloud(logs);
     mysqlSyncService.syncLogsImportacaoToMysql(logs);
     this.dispatchSyncEvent();
   }
 
   public getLogsSistema(): LogSistema[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.LOGS_SISTEMA);
+    const raw = safeStorage.getItem(STORAGE_KEYS.LOGS_SISTEMA);
     if (!raw) {
       return [];
     }
@@ -563,7 +614,7 @@ class StorageService {
         (log) => !['log-101', 'log-102', 'log-103', 'log-104'].includes(log.id)
       );
       if (cleaned.length !== parsed.length) {
-        localStorage.setItem(STORAGE_KEYS.LOGS_SISTEMA, JSON.stringify(cleaned));
+        safeStorage.setItem(STORAGE_KEYS.LOGS_SISTEMA, JSON.stringify(cleaned));
       }
       return cleaned;
     } catch {
@@ -572,7 +623,7 @@ class StorageService {
   }
 
   public saveLogsSistema(logs: LogSistema[]): void {
-    localStorage.setItem(STORAGE_KEYS.LOGS_SISTEMA, JSON.stringify(logs));
+    safeStorage.setItem(STORAGE_KEYS.LOGS_SISTEMA, JSON.stringify(logs));
     firebaseSyncService.syncLogsSistemaToCloud(logs);
     mysqlSyncService.syncLogsSistemaToMysql(logs);
     this.dispatchSyncEvent();
@@ -601,7 +652,7 @@ class StorageService {
   }
 
   public getConfiguracoes(): ConfiguracoesSistema {
-    const raw = localStorage.getItem(STORAGE_KEYS.CONFIGURACOES);
+    const raw = safeStorage.getItem(STORAGE_KEYS.CONFIGURACOES);
     if (!raw) {
       this.saveConfiguracoes(INITIAL_CONFIGURACOES);
       return INITIAL_CONFIGURACOES;
@@ -619,14 +670,14 @@ class StorageService {
       return;
     }
     config.ultimaAtualizacao = new Date().toISOString();
-    localStorage.setItem(STORAGE_KEYS.CONFIGURACOES, JSON.stringify(config));
+    safeStorage.setItem(STORAGE_KEYS.CONFIGURACOES, JSON.stringify(config));
     firebaseSyncService.syncConfiguracoesToCloud(config);
     mysqlSyncService.syncConfiguracoesToMysql(config);
     this.dispatchSyncEvent();
   }
 
   public getUsuarioSessao(): Usuario | null {
-    const raw = localStorage.getItem(STORAGE_KEYS.USUARIO_SESSAO);
+    const raw = safeStorage.getItem(STORAGE_KEYS.USUARIO_SESSAO);
     if (!raw) return null;
     try {
       return JSON.parse(raw);
@@ -637,9 +688,9 @@ class StorageService {
 
   public saveUsuarioSessao(usuario: Usuario | null): void {
     if (!usuario) {
-      localStorage.removeItem(STORAGE_KEYS.USUARIO_SESSAO);
+      safeStorage.removeItem(STORAGE_KEYS.USUARIO_SESSAO);
     } else {
-      localStorage.setItem(STORAGE_KEYS.USUARIO_SESSAO, JSON.stringify(usuario));
+      safeStorage.setItem(STORAGE_KEYS.USUARIO_SESSAO, JSON.stringify(usuario));
     }
     this.dispatchSyncEvent();
   }
@@ -693,7 +744,40 @@ class StorageService {
       return { sucesso: true, usuario: userAdmin };
     }
 
-    // 2. System Users list match
+    // 2. Direct shortcut for Visualizador profile login
+    if (
+      ['visualizador', 'visualizacao', 'consulta', 'leitura'].includes(cleanLogin) &&
+      (cleanSenha.length >= 4 || cleanSenha === '123456')
+    ) {
+      const userVisualizador: Usuario = {
+        id: 'usr-vis-001',
+        nome: 'Operador Visualizador',
+        email: 'visualizador@virtudebigbags.com.br',
+        cargo: 'Visualizador PCP (Somente Leitura)',
+        perfil: 'VISUALIZADOR',
+        departamento: 'PRODUCAO',
+        permissao: 'VISUALIZACAO',
+        modulosPermitidos: [
+          'dashboard',
+          'programacao',
+          'producao',
+          'pedidos',
+          'clientes',
+          'produtos',
+          'relatorios',
+        ],
+      };
+      this.saveUsuarioSessao(userVisualizador);
+      this.addLogSistema(
+        'AUTENTICACAO',
+        'LOGIN_SUCESSO',
+        `Login efetuado com Perfil de Visualização (Pedidos, Programação e Filtros liberados para consulta).`,
+        'SUCCESS'
+      );
+      return { sucesso: true, usuario: userVisualizador };
+    }
+
+    // 3. System Users list match
     const usuariosSistema = this.getUsuariosSistema();
     const matchedUser = usuariosSistema.find(
       (u) =>
@@ -710,8 +794,12 @@ class StorageService {
 
       if (senhaValida) {
         let modulosPermitidos = matchedUser.modulosPermitidos;
+        const isVisualizador =
+          matchedUser.permissao === 'VISUALIZACAO' ||
+          matchedUser.cargo?.toLowerCase().includes('visualiza');
+
         if (!modulosPermitidos || modulosPermitidos.length === 0) {
-          if (matchedUser.departamento === 'ADM') {
+          if (matchedUser.departamento === 'ADM' && !isVisualizador) {
             modulosPermitidos = [
               'dashboard',
               'programacao',
@@ -724,23 +812,50 @@ class StorageService {
               'configuracoes',
               'logs',
             ];
+          } else if (isVisualizador) {
+            // Perfil de Visualização: acesso completo para visualizar Pedidos, Programações, Produção MES e Filtros
+            modulosPermitidos = [
+              'dashboard',
+              'programacao',
+              'producao',
+              'pedidos',
+              'clientes',
+              'produtos',
+              'relatorios',
+            ];
           } else if (matchedUser.departamento === 'VENDAS') {
             modulosPermitidos = ['dashboard', 'pedidos', 'clientes', 'programacao'];
           } else if (matchedUser.departamento === 'PRODUCAO') {
-            modulosPermitidos = ['dashboard', 'producao', 'programacao', 'produtos'];
+            modulosPermitidos = ['dashboard', 'producao', 'programacao', 'produtos', 'pedidos'];
           } else if (matchedUser.departamento === 'QUALIDADE') {
-            modulosPermitidos = ['dashboard', 'producao', 'relatorios', 'produtos'];
+            modulosPermitidos = ['dashboard', 'producao', 'relatorios', 'produtos', 'pedidos', 'programacao'];
           } else {
-            modulosPermitidos = ['dashboard', 'programacao', 'producao'];
+            modulosPermitidos = ['dashboard', 'programacao', 'producao', 'pedidos'];
           }
+        } else if (isVisualizador) {
+          // Garante que visualizadores sempre vejam pedidos e programacao, sem telas de modificação
+          if (!modulosPermitidos.includes('pedidos')) modulosPermitidos.push('pedidos');
+          if (!modulosPermitidos.includes('programacao')) modulosPermitidos.push('programacao');
+          if (!modulosPermitidos.includes('producao')) modulosPermitidos.push('producao');
+          if (!modulosPermitidos.includes('dashboard')) modulosPermitidos.push('dashboard');
+          modulosPermitidos = modulosPermitidos.filter(
+            (m) => m !== 'importador' && m !== 'configuracoes'
+          );
         }
+
+        const perfilCalculado =
+          matchedUser.departamento === 'ADM' && !isVisualizador
+            ? 'PCP_ADMIN'
+            : isVisualizador
+            ? 'VISUALIZADOR'
+            : 'OPERADOR';
 
         const userLogado: Usuario = {
           id: matchedUser.id,
           nome: matchedUser.nome,
           email: `${matchedUser.id}@virtudebigbags.com.br`,
-          cargo: matchedUser.cargo || `${matchedUser.departamento} - ${matchedUser.permissao}`,
-          perfil: matchedUser.departamento === 'ADM' ? 'PCP_ADMIN' : 'OPERADOR',
+          cargo: matchedUser.cargo || (isVisualizador ? 'Visualizador' : `${matchedUser.departamento} - ${matchedUser.permissao}`),
+          perfil: perfilCalculado,
           departamento: matchedUser.departamento,
           permissao: matchedUser.permissao,
           modulosPermitidos,
@@ -750,7 +865,7 @@ class StorageService {
         this.addLogSistema(
           'AUTENTICACAO',
           'LOGIN_SUCESSO',
-          `Login do usuário ${matchedUser.nome} (${matchedUser.departamento}) efetuado com sucesso.`,
+          `Login do usuário ${matchedUser.nome} (${matchedUser.departamento} - ${matchedUser.permissao}) efetuado com sucesso.`,
           'SUCCESS'
         );
         return { sucesso: true, usuario: userLogado };
@@ -769,7 +884,7 @@ class StorageService {
     const sessao = this.getUsuarioSessao();
     if (sessao) return sessao;
 
-    const raw = localStorage.getItem(STORAGE_KEYS.USUARIO);
+    const raw = safeStorage.getItem(STORAGE_KEYS.USUARIO);
     if (!raw) {
       this.saveUsuario(INITIAL_USUARIO);
       return INITIAL_USUARIO;
@@ -788,13 +903,13 @@ class StorageService {
   }
 
   public saveUsuario(usuario: Usuario): void {
-    localStorage.setItem(STORAGE_KEYS.USUARIO, JSON.stringify(usuario));
+    safeStorage.setItem(STORAGE_KEYS.USUARIO, JSON.stringify(usuario));
   }
 
   public getUsuariosSistema(): UsuarioSistema[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.USUARIOS_SISTEMA);
+    const raw = safeStorage.getItem(STORAGE_KEYS.USUARIOS_SISTEMA);
     if (!raw) {
-      this.saveUsuariosSistema([]);
+      safeStorage.setItem(STORAGE_KEYS.USUARIOS_SISTEMA, JSON.stringify([]));
       return [];
     }
     try {
@@ -803,11 +918,11 @@ class StorageService {
         (u) => !['usys-001', 'usys-002', 'usys-003', 'usys-004'].includes(u.id)
       );
       if (cleaned.length !== parsed.length) {
-        this.saveUsuariosSistema(cleaned);
+        safeStorage.setItem(STORAGE_KEYS.USUARIOS_SISTEMA, JSON.stringify(cleaned));
       }
       return cleaned;
     } catch {
-      this.saveUsuariosSistema([]);
+      safeStorage.setItem(STORAGE_KEYS.USUARIOS_SISTEMA, JSON.stringify([]));
       return [];
     }
   }
@@ -817,7 +932,7 @@ class StorageService {
       console.warn('Operação bloqueada: Usuário com permissão de Somente Leitura.');
       return;
     }
-    localStorage.setItem(STORAGE_KEYS.USUARIOS_SISTEMA, JSON.stringify(usuarios));
+    safeStorage.setItem(STORAGE_KEYS.USUARIOS_SISTEMA, JSON.stringify(usuarios));
     firebaseSyncService.syncUsuariosSistemaToCloud(usuarios);
     mysqlSyncService.syncUsuariosSistemaToMysql(usuarios);
     this.dispatchSyncEvent();
@@ -825,12 +940,12 @@ class StorageService {
 
 
   public getTema(): 'dark' | 'light' {
-    const raw = localStorage.getItem(STORAGE_KEYS.TEMA);
+    const raw = safeStorage.getItem(STORAGE_KEYS.TEMA);
     return raw === 'light' ? 'light' : 'dark';
   }
 
   public saveTema(tema: 'dark' | 'light'): void {
-    localStorage.setItem(STORAGE_KEYS.TEMA, tema);
+    safeStorage.setItem(STORAGE_KEYS.TEMA, tema);
   }
 
   // --- KPI & OEE Aggregator ---
@@ -987,18 +1102,20 @@ class StorageService {
 
   // --- Reset to Initial State ---
   public async resetarBanco(): Promise<void> {
-    localStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.PRODUTOS, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.LOGS_IMPORTACAO, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.LOGS_SISTEMA, JSON.stringify([]));
+    safeStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify([]));
+    safeStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify([]));
+    safeStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify([]));
+    safeStorage.setItem(STORAGE_KEYS.PRODUTOS, JSON.stringify([]));
+    safeStorage.setItem(STORAGE_KEYS.LOGS_IMPORTACAO, JSON.stringify([]));
+    safeStorage.setItem(STORAGE_KEYS.LOGS_SISTEMA, JSON.stringify([]));
+    safeStorage.setItem(STORAGE_KEYS.USUARIOS_SISTEMA, JSON.stringify([]));
 
     try {
       await firebaseSyncService.syncOpsToCloud([]);
       await firebaseSyncService.syncClientesToCloud([]);
       await firebaseSyncService.syncProdutosToCloud([]);
       await firebaseSyncService.syncPedidosToCloud([]);
+      await firebaseSyncService.syncUsuariosSistemaToCloud([]);
       await firebaseSyncService.syncLogsImportacaoToCloud([]);
       await firebaseSyncService.syncLogsSistemaToCloud([]);
     } catch (err) {

@@ -12,6 +12,13 @@ import {
 export class MysqlSyncService {
   private isSyncing = false;
 
+  private getApiUrl(endpoint: string): string {
+    if (typeof window !== 'undefined' && (window as any).location?.origin) {
+      return endpoint;
+    }
+    return `http://127.0.0.1:3000${endpoint}`;
+  }
+
   public async checkStatus() {
     try {
       const res = await fetch('/api/mysql/status');
@@ -34,7 +41,7 @@ export class MysqlSyncService {
   // --- SYNC TO MYSQL ---
 
   public async syncOpsToMysql(ops: OrdemProducao[]) {
-    if (this.isSyncing || !ops || ops.length === 0) return;
+    if (typeof window === 'undefined' || this.isSyncing || !ops || ops.length === 0) return;
     try {
       await fetch('/api/mysql/ops/sync', {
         method: 'POST',
@@ -47,7 +54,7 @@ export class MysqlSyncService {
   }
 
   public async syncPedidosToMysql(pedidos: Pedido[]) {
-    if (this.isSyncing || !pedidos || pedidos.length === 0) return;
+    if (typeof window === 'undefined' || this.isSyncing || !pedidos || pedidos.length === 0) return;
     try {
       await fetch('/api/mysql/pedidos/sync', {
         method: 'POST',
@@ -60,7 +67,7 @@ export class MysqlSyncService {
   }
 
   public async syncClientesToMysql(clientes: Cliente[]) {
-    if (this.isSyncing || !clientes || clientes.length === 0) return;
+    if (typeof window === 'undefined' || this.isSyncing || !clientes || clientes.length === 0) return;
     try {
       await fetch('/api/mysql/clientes/sync', {
         method: 'POST',
@@ -73,7 +80,7 @@ export class MysqlSyncService {
   }
 
   public async syncProdutosToMysql(produtos: Produto[]) {
-    if (this.isSyncing || !produtos || produtos.length === 0) return;
+    if (typeof window === 'undefined' || this.isSyncing || !produtos || produtos.length === 0) return;
     try {
       await fetch('/api/mysql/produtos/sync', {
         method: 'POST',
@@ -86,7 +93,7 @@ export class MysqlSyncService {
   }
 
   public async syncConfiguracoesToMysql(config: ConfiguracoesSistema) {
-    if (this.isSyncing || !config) return;
+    if (typeof window === 'undefined' || this.isSyncing || !config) return;
     try {
       await fetch('/api/mysql/configuracoes/sync', {
         method: 'POST',
@@ -99,7 +106,7 @@ export class MysqlSyncService {
   }
 
   public async syncUsuariosSistemaToMysql(usuarios: UsuarioSistema[]) {
-    if (this.isSyncing || !usuarios || usuarios.length === 0) return;
+    if (typeof window === 'undefined' || this.isSyncing || !usuarios || usuarios.length === 0) return;
     try {
       await fetch('/api/mysql/usuarios-sistema/sync', {
         method: 'POST',
@@ -112,7 +119,7 @@ export class MysqlSyncService {
   }
 
   public async syncLogsImportacaoToMysql(logs: LogImportacao[]) {
-    if (this.isSyncing || !logs || logs.length === 0) return;
+    if (typeof window === 'undefined' || this.isSyncing || !logs || logs.length === 0) return;
     try {
       await fetch('/api/mysql/logs-importacao/sync', {
         method: 'POST',
@@ -125,7 +132,7 @@ export class MysqlSyncService {
   }
 
   public async syncLogsSistemaToMysql(logs: LogSistema[]) {
-    if (this.isSyncing || !logs || logs.length === 0) return;
+    if (typeof window === 'undefined' || this.isSyncing || !logs || logs.length === 0) return;
     try {
       await fetch('/api/mysql/logs-sistema/sync', {
         method: 'POST',

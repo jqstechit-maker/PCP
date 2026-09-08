@@ -6,6 +6,7 @@ import {
   Layers,
   Package,
   Search,
+  Shield,
   ShieldCheck,
   X,
 } from 'lucide-react';
@@ -18,6 +19,7 @@ type FiltroRapido = 'TODOS' | 'EM_ABERTO' | 'EM_PRODUCAO' | 'FINALIZADO';
 export const PedidosView: React.FC = () => {
   const [pedidos, setPedidos] = useState<Pedido[]>(() => storageService.getPedidos());
   const [isAdmin, setIsAdmin] = useState<boolean>(() => storageService.isAdmin());
+  const [podeEditar, setPodeEditar] = useState<boolean>(() => storageService.podeEditar());
   const [filtroRapido, setFiltroRapido] = useState<FiltroRapido>('TODOS');
   const [buscaTexto, setBuscaTexto] = useState<string>('');
 
@@ -26,6 +28,7 @@ export const PedidosView: React.FC = () => {
     const handleSync = () => {
       setPedidos(storageService.getPedidos());
       setIsAdmin(storageService.isAdmin());
+      setPodeEditar(storageService.podeEditar());
     };
 
     window.addEventListener('virtude_data_synced', handleSync);
@@ -115,9 +118,17 @@ export const PedidosView: React.FC = () => {
           </p>
         </div>
 
-        {/* Indicador de Privilégio Admin / Operacional */}
+        {/* Indicador de Privilégio Admin / Visualizador / Operacional */}
         <div className="flex items-center space-x-2">
-          {isAdmin ? (
+          {!podeEditar ? (
+            <div className="px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center space-x-2 text-xs text-amber-400">
+              <Shield className="w-4 h-4 text-amber-400 shrink-0" />
+              <div className="leading-tight">
+                <span className="font-bold">Perfil de Visualização</span>
+                <p className="text-[10px] text-amber-400/80">Consulta e filtros ativos &bull; Somente leitura</p>
+              </div>
+            </div>
+          ) : isAdmin ? (
             <div className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center space-x-2 text-xs text-emerald-400">
               <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
               <div className="leading-tight">

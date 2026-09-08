@@ -172,7 +172,7 @@ class FirebaseSyncService {
     collectionName: string,
     items: T[]
   ) {
-    if (this.isSyncingFromRemote) return;
+    if (this.isSyncingFromRemote || typeof window === 'undefined' || !(window as any).document) return;
     try {
       const colRef = collection(db, collectionName);
       const existing = await getDocs(colRef);
@@ -190,8 +190,10 @@ class FirebaseSyncService {
 
       // Upsert current items
       items.forEach((item) => {
+        // Strip any undefined keys so Firestore doesn't reject the payload
+        const cleanItem = JSON.parse(JSON.stringify(item));
         const ref = doc(db, collectionName, item.id);
-        ops.push((b) => b.set(ref, item));
+        ops.push((b) => b.set(ref, cleanItem));
       });
 
       // Execute in chunks of 350 operations

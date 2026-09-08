@@ -114,6 +114,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Filter menu items by user permissions
   const menuItemsPermitidos = menuItems.filter((item) => {
     if (usuario.perfil === 'PCP_ADMIN' || usuario.departamento === 'ADM') return true;
+
+    // Perfil de Visualização: acesso garantido para ver pedidos, programações, chão de fábrica (MES) e filtros
+    if (usuario.permissao === 'VISUALIZACAO' || usuario.perfil === 'VISUALIZADOR') {
+      return [
+        'dashboard',
+        'programacao',
+        'producao',
+        'pedidos',
+        'clientes',
+        'produtos',
+        'relatorios',
+      ].includes(item.id);
+    }
+
     if (usuario.modulosPermitidos && usuario.modulosPermitidos.length > 0) {
       return usuario.modulosPermitidos.includes(item.id as ModuloAtivo);
     }
@@ -122,12 +136,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       return ['dashboard', 'pedidos', 'clientes', 'programacao'].includes(item.id);
     }
     if (usuario.departamento === 'PRODUCAO') {
-      return ['dashboard', 'producao', 'programacao', 'produtos'].includes(item.id);
+      return ['dashboard', 'producao', 'programacao', 'produtos', 'pedidos'].includes(item.id);
     }
     if (usuario.departamento === 'QUALIDADE') {
-      return ['dashboard', 'producao', 'relatorios', 'produtos'].includes(item.id);
+      return ['dashboard', 'producao', 'relatorios', 'produtos', 'pedidos', 'programacao'].includes(item.id);
     }
-    return ['dashboard', 'programacao', 'producao'].includes(item.id);
+    return ['dashboard', 'programacao', 'producao', 'pedidos'].includes(item.id);
   });
 
   return (

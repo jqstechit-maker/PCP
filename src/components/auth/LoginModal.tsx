@@ -72,8 +72,27 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <div>
             <h4 className="font-bold text-sm text-slate-100">{usuarioAtual.nome}</h4>
             <p className="text-xs text-amber-400 font-medium">{usuarioAtual.cargo}</p>
+            <div className="mt-1.5 flex items-center space-x-2">
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                  usuarioAtual.permissao === 'VISUALIZACAO' || usuarioAtual.perfil === 'VISUALIZADOR'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                    : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                }`}
+              >
+                {usuarioAtual.permissao === 'VISUALIZACAO' || usuarioAtual.perfil === 'VISUALIZADOR'
+                  ? 'Perfil: Visualizador (Consulta e Filtros)'
+                  : 'Perfil: Edição'}
+              </span>
+            </div>
           </div>
         </div>
+
+        {usuarioAtual.permissao === 'VISUALIZACAO' && (
+          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-300 text-[11px] leading-relaxed">
+            Seu perfil possui acesso completo para <strong>visualizar Pedidos, Programações, Produção MES e aplicar Filtros</strong>. Inclusões e alterações de dados estão desabilitadas.
+          </div>
+        )}
 
         {/* Change Password Form */}
         <form onSubmit={handleMudarSenha} className="space-y-3 text-xs">

@@ -66,12 +66,24 @@ export const GestaoUsuariosView: React.FC = () => {
     const novoUsuario: UsuarioSistema = {
       id: `usys-${Date.now()}`,
       nome: nome.trim(),
-      cargo: cargo.trim() || 'Operador PCP',
+      cargo: cargo.trim() || (permissao === 'VISUALIZACAO' ? 'Visualizador PCP' : 'Operador PCP'),
       departamento,
       permissao,
       politicaAceita: true,
       dataCriacao: new Date().toISOString().split('T')[0],
       status: 'ATIVO',
+      modulosPermitidos:
+        permissao === 'VISUALIZACAO'
+          ? [
+              'dashboard',
+              'programacao',
+              'producao',
+              'pedidos',
+              'clientes',
+              'produtos',
+              'relatorios',
+            ]
+          : undefined,
     };
 
     const listaAtualizada = [novoUsuario, ...usuarios];
@@ -105,7 +117,19 @@ export const GestaoUsuariosView: React.FC = () => {
       if (u.id === id) {
         const novaPermissao: RegraAcesso =
           u.permissao === 'EDITAR' ? 'VISUALIZACAO' : 'EDITAR';
-        return { ...u, permissao: novaPermissao };
+        const novosModulos =
+          novaPermissao === 'VISUALIZACAO'
+            ? [
+                'dashboard',
+                'programacao',
+                'producao',
+                'pedidos',
+                'clientes',
+                'produtos',
+                'relatorios',
+              ]
+            : undefined;
+        return { ...u, permissao: novaPermissao, modulosPermitidos: novosModulos };
       }
       return u;
     });
@@ -362,6 +386,17 @@ export const GestaoUsuariosView: React.FC = () => {
                   <span>Editar</span>
                 </label>
               </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+                {permissao === 'VISUALIZACAO' ? (
+                  <span className="text-amber-600 dark:text-amber-400 font-medium">
+                    &bull; <strong>Perfil de Visualização:</strong> visualiza Pedidos, Programações, Produção MES e filtros. Alterações e cadastros ficam bloqueados.
+                  </span>
+                ) : (
+                  <span className="text-blue-600 dark:text-blue-400 font-medium">
+                    &bull; <strong>Perfil de Edição:</strong> permissão para realizar apontamentos, alterar status e cadastros operacionais.
+                  </span>
+                )}
+              </p>
             </div>
 
             {/* Checkbox Política de Uso */}

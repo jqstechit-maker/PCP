@@ -14,7 +14,6 @@ import {
   AlertTriangle,
   ArrowUpRight,
   BarChart3,
-  CheckCircle2,
   Clock,
   Gauge,
   Layers,
