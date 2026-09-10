@@ -69,16 +69,14 @@ export const PedidosView: React.FC = () => {
     };
   }, [pedidos]);
 
-  // Totalizadores operacionais e financeiros
+  // Totalizadores operacionais
   const totaisGerais = useMemo(() => {
     const totalBags = pedidos.reduce((acc, p) => acc + (p.totalItens || 0), 0);
     const totalProduzido = pedidos.reduce((acc, p) => acc + (p.totalProduzido || 0), 0);
-    const valorTotalEstimado = pedidos.reduce((acc, p) => acc + (p.valorTotal || 0), 0);
 
     return {
       totalBags,
       totalProduzido,
-      valorTotalEstimado,
     };
   }, [pedidos]);
 
@@ -133,7 +131,7 @@ export const PedidosView: React.FC = () => {
               <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
               <div className="leading-tight">
                 <span className="font-bold">Acesso Administrador</span>
-                <p className="text-[10px] text-emerald-400/80">Valores comerciais visíveis</p>
+                <p className="text-[10px] text-emerald-400/80">Gestão e controle de pedidos</p>
               </div>
             </div>
           ) : (
@@ -141,7 +139,7 @@ export const PedidosView: React.FC = () => {
               <Package className="w-4 h-4 text-slate-400 shrink-0" />
               <div className="leading-tight">
                 <span className="font-semibold text-slate-300">Modo Operacional</span>
-                <p className="text-[10px] text-slate-400">Valores financeiros restritos ao Admin</p>
+                <p className="text-[10px] text-slate-400">Acompanhamento da produção</p>
               </div>
             </div>
           )}
@@ -197,15 +195,9 @@ export const PedidosView: React.FC = () => {
           <p className="text-xl font-bold text-emerald-400 mt-2 font-mono">
             {contagens.finalizados}
           </p>
-          {isAdmin ? (
-            <p className="text-[10px] text-emerald-400/90 mt-0.5 font-mono">
-              Total: R$ {totaisGerais.valorTotalEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </p>
-          ) : (
-            <p className="text-[10px] text-slate-500 mt-0.5">
-              100% concluídos
-            </p>
-          )}
+          <p className="text-[10px] text-slate-500 mt-0.5">
+            100% concluídos
+          </p>
         </div>
       </div>
 
@@ -481,22 +473,6 @@ export const PedidosView: React.FC = () => {
                     </div>
                   </div>
                 </div>
-
-                {/* VALOR ESTIMADO: Exibição restrita a usuários ADMIN */}
-                {isAdmin && ped.valorTotal !== undefined && (
-                  <div className="pt-3 border-t border-slate-800/80 flex justify-between items-center text-xs">
-                    <span className="text-slate-400 flex items-center space-x-1">
-                      <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Valor Estimado (Admin):</span>
-                    </span>
-                    <span className="font-bold font-mono text-emerald-400 text-sm">
-                      R${' '}
-                      {ped.valorTotal.toLocaleString('pt-BR', {
-                        minimumFractionDigits: 2,
-                      })}
-                    </span>
-                  </div>
-                )}
               </div>
             );
           })}

@@ -109,11 +109,13 @@ export default function App() {
 
         {/* Main Content Area */}
         <main
-          className={`flex-1 overflow-y-auto p-4 md:p-6 transition-colors ${
+          className={`flex-1 overflow-y-auto ${
+            moduloAtivo === 'producao' ? 'p-3 md:p-4 xl:p-5' : 'p-4 md:p-6'
+          } transition-colors ${
             tema === 'light' ? 'bg-[#f8fafc] text-slate-800' : 'bg-slate-950 text-slate-100'
           }`}
         >
-          <div className="max-w-7xl mx-auto space-y-6">
+          <div className={`${moduloAtivo === 'producao' ? 'w-full space-y-4' : 'max-w-7xl mx-auto space-y-6'}`}>
             {moduloAtivo === 'dashboard' && (
               <DashboardView
                 onNavegarProgramacao={() => setModuloAtivo('programacao')}

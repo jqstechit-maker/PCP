@@ -398,7 +398,6 @@ class StorageService {
             totalItens: op.quantidade || 0,
             totalProduzido: op.quantidadeProduzida || 0,
             ops: [op.opNumber],
-            valorTotal: (op.quantidade || 0) * 48.50,
           };
           pedidosMap.set(pedKey, novoPed);
         } else {
@@ -408,9 +407,6 @@ class StorageService {
           }
           ped.totalItens = (ped.totalItens || 0) + (op.quantidade || 0);
           ped.totalProduzido = (ped.totalProduzido || 0) + (op.quantidadeProduzida || 0);
-          if (op.quantidade) {
-            ped.valorTotal = (ped.valorTotal || 0) + (op.quantidade * 48.50);
-          }
         }
       }
     });
@@ -436,9 +432,14 @@ class StorageService {
     if (!raw) return [];
     try {
       const parsed: Pedido[] = JSON.parse(raw);
-      return parsed.filter(
-        (p) => !['ped-1042', 'ped-1043', 'ped-1044', 'ped-1045', 'ped-1046'].includes(p.id)
-      );
+      return parsed
+        .filter(
+          (p) => !['ped-1042', 'ped-1043', 'ped-1044', 'ped-1045', 'ped-1046'].includes(p.id)
+        )
+        .map((p) => {
+          const { valorTotal, ...rest } = p;
+          return rest as Pedido;
+        });
     } catch {
       return [];
     }
