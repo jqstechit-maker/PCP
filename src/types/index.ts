@@ -40,6 +40,7 @@ export interface OrdemProducao {
   desenho?: string; // Desenho técnico
   produto: string; // Ex: Big Bag Travado 90x90x120cm
   modelo: string; // Ex: Saia Superior / Funil Inferior
+  dimensoes?: string; // Dimensões (ex: 90x90x120cm)
   dataProgramada: string; // YYYY-MM-DD
   statusProcesso?: string; // Status do processo
   status: StatusProducao;

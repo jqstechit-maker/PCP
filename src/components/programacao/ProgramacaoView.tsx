@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   Download,
   Edit2,
+  Eye,
   FileSpreadsheet,
   FileText,
   Filter,
@@ -20,6 +21,7 @@ import { pdfService } from '../../services/pdfService';
 import { storageService } from '../../services/storageService';
 import { OrdemProducao, StatusProducao } from '../../types';
 import { ModalApontamentoProducao } from '../producao/ModalApontamentoProducao';
+import { ModalDetalhesOpFinalizada } from './ModalDetalhesOpFinalizada';
 
 interface ProgramacaoViewProps {
   buscaGlobal: string;
@@ -64,6 +66,7 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
 
   // Modal State for OP Apontamento & Status
   const [opModal, setOpModal] = useState<OrdemProducao | null>(null);
+  const [opDetalhesFinalizada, setOpDetalhesFinalizada] = useState<OrdemProducao | null>(null);
 
   // Recalculate list whenever storage updates
   const recarregarDados = () => {
@@ -464,10 +467,19 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
                         {formatarDataBR(op.dataProgramada)}
                       </td>
                       <td className="p-3 text-right">
-                        {podeEditar ? (
+                        {op.status === 'FINALIZADO' ? (
+                          <button
+                            onClick={() => setOpDetalhesFinalizada(op)}
+                            className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 bg-blue-500/10 hover:bg-blue-600 hover:text-white text-blue-400 border border-blue-500/20 rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                            title="Ver Detalhes das Peças Produzidas e Refugo"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Detalhes</span>
+                          </button>
+                        ) : podeEditar ? (
                           <button
                             onClick={() => abrirModalApontamento(op)}
-                            className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500 hover:text-slate-950 text-amber-400 border border-amber-500/20 rounded-lg text-xs font-bold transition-all shadow-xs"
+                            className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500 hover:text-slate-950 text-amber-400 border border-amber-500/20 rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
                             title="Apontar Quantidade e Mudar Status"
                           >
                             <ClipboardCheck className="w-3.5 h-3.5" />
@@ -582,6 +594,14 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
             setOpModal(null);
           }}
           titulo="Apontamento de Produção & Status da Programação"
+        />
+      )}
+
+      {/* Modal de Detalhes de OP Finalizada (Peças por Etapa, Refugo e Justificativas) */}
+      {opDetalhesFinalizada && (
+        <ModalDetalhesOpFinalizada
+          op={opDetalhesFinalizada}
+          aoFechar={() => setOpDetalhesFinalizada(null)}
         />
       )}
     </div>
