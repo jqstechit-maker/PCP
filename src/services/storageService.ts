@@ -13,6 +13,7 @@ import {
   ApontamentoProducao,
   Cliente,
   ConfiguracoesSistema,
+  DadosQualidadeApontamento,
   IndicadoresKpi,
   LogImportacao,
   LogSistema,
@@ -1025,7 +1026,8 @@ class StorageService {
     novoStatus: StatusProducao,
     qtdProduzidaAdicional?: number,
     observacoes?: string,
-    operadorNome?: string
+    operadorNome?: string,
+    dadosQualidade?: DadosQualidadeApontamento
   ): OrdemProducao {
     if (!this.podeEditar()) {
       throw new Error('Permissão negada: Usuário com perfil de Somente Leitura.');
@@ -1043,6 +1045,13 @@ class StorageService {
 
     if (observacoes !== undefined) {
       op.observacoes = observacoes;
+    }
+
+    if (dadosQualidade) {
+      op.revisadoQualidade = dadosQualidade.revisadoQualidade;
+      if (dadosQualidade.pecasRefugadas && dadosQualidade.quantidadeRefugada) {
+        op.quantidadeRefugada = (op.quantidadeRefugada || 0) + Number(dadosQualidade.quantidadeRefugada || 0);
+      }
     }
 
     if (qtdApontada > 0) {
@@ -1080,6 +1089,10 @@ class StorageService {
       quantidadeTotalApos: op.quantidadeProduzida,
       operador: nomeOperador,
       observacoes: observacoes?.trim() || undefined,
+      revisadoQualidade: dadosQualidade?.revisadoQualidade,
+      pecasRefugadas: dadosQualidade?.pecasRefugadas,
+      quantidadeRefugada: dadosQualidade?.pecasRefugadas ? dadosQualidade.quantidadeRefugada : 0,
+      justificativaRefugo: dadosQualidade?.justificativa?.trim() || undefined,
     };
 
     if (!Array.isArray(op.apontamentos)) {
@@ -1091,10 +1104,14 @@ class StorageService {
     this.saveOps(ops);
     this.syncDerivadosComOps();
 
+    const qualidadeLog = dadosQualidade
+      ? ` | Qualidade: ${dadosQualidade.revisadoQualidade ? 'Revisado (SIM)' : 'NÃO'} | Refugo: ${dadosQualidade.pecasRefugadas ? `SIM (${dadosQualidade.quantidadeRefugada || 0} un)` : 'NÃO'}`
+      : '';
+
     this.addLogSistema(
       'MES_APONTAMENTO',
       'APONTAMENTO_STATUS',
-      `OP ${op.opNumber} (${op.cliente}): status alterado de ${statusAntigo} para ${novoStatus}. Apontado: ${qtdApontada} un (Total acumulado: ${op.quantidadeProduzida}/${op.quantidade}). Operador: ${nomeOperador}`,
+      `OP ${op.opNumber} (${op.cliente}): status alterado de ${statusAntigo} para ${novoStatus}. Apontado: ${qtdApontada} un (Total acumulado: ${op.quantidadeProduzida}/${op.quantidade}). Operador: ${nomeOperador}${qualidadeLog}`,
       novoStatus === 'ATRASADO' ? 'WARNING' : 'INFO'
     );
 

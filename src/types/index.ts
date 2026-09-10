@@ -8,6 +8,13 @@ export type StatusProducao =
 
 export type PrioridadeOp = 'BAIXA' | 'MÉDIA' | 'ALTA' | 'URGENTE';
 
+export interface DadosQualidadeApontamento {
+  revisadoQualidade: boolean;
+  pecasRefugadas: boolean;
+  quantidadeRefugada?: number;
+  justificativa?: string;
+}
+
 export interface ApontamentoProducao {
   id: string;
   dataHora: string;
@@ -17,6 +24,10 @@ export interface ApontamentoProducao {
   quantidadeTotalApos: number;
   operador: string;
   observacoes?: string;
+  revisadoQualidade?: boolean;
+  pecasRefugadas?: boolean;
+  quantidadeRefugada?: number;
+  justificativaRefugo?: string;
 }
 
 export interface OrdemProducao {
@@ -35,6 +46,7 @@ export interface OrdemProducao {
   dataConfec?: string; // Data de confecção
   quantidade: number;
   quantidadeProduzida: number;
+  quantidadeRefugada?: number;
   lote?: string; // Número do lote
   eficiencia: number; // Ex: 94%
   prioridade: PrioridadeOp;
@@ -43,6 +55,7 @@ export interface OrdemProducao {
   dataInicioReal?: string;
   dataFimReal?: string;
   observacoes?: string;
+  revisadoQualidade?: boolean;
   capacidadeCargaKg?: number; // Ex: 1000kg, 1500kg
   tecidoGrm?: number; // Gramatura g/m²
   tempoEstimadoHoras?: number;

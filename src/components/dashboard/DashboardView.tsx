@@ -506,13 +506,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               : 'FINALIZADO'
           }
           aoFechar={() => setOpParaApontamento(null)}
-          aoConfirmar={(opId, novoStatus, quantidadeApontada, observacoes, operador) => {
+          aoConfirmar={(opId, novoStatus, quantidadeApontada, observacoes, operador, dadosQualidade) => {
             storageService.atualizarStatusOp(
               opId,
               novoStatus,
               quantidadeApontada,
               observacoes,
-              operador
+              operador,
+              dadosQualidade
             );
             setVersao((v) => v + 1);
             setOpParaApontamento(null);

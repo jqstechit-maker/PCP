@@ -1,6 +1,8 @@
 import {
+  AlertOctagon,
   AlertTriangle,
   ArrowRight,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -9,12 +11,13 @@ import {
   History,
   Info,
   Package,
+  ShieldCheck,
   User,
   X,
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { storageService } from '../../services/storageService';
-import { OrdemProducao, StatusProducao } from '../../types';
+import { DadosQualidadeApontamento, OrdemProducao, StatusProducao } from '../../types';
 
 interface ModalApontamentoProducaoProps {
   op: OrdemProducao;
@@ -25,7 +28,8 @@ interface ModalApontamentoProducaoProps {
     novoStatus: StatusProducao,
     quantidadeApontada: number,
     observacoes?: string,
-    operador?: string
+    operador?: string,
+    dadosQualidade?: DadosQualidadeApontamento
   ) => void;
   titulo?: string;
 }
@@ -63,14 +67,16 @@ export const ModalApontamentoProducao: React.FC<ModalApontamentoProducaoProps> =
   const [mostrarHistorico, setMostrarHistorico] = useState<boolean>(false);
   const [tentouSalvar, setTentouSalvar] = useState<boolean>(false);
 
+  // Novos campos: Controle de Qualidade, Peças Refugadas e Justificativa
+  const [revisadoQualidade, setRevisadoQualidade] = useState<boolean>(true);
+  const [pecasRefugadas, setPecasRefugadas] = useState<boolean>(false);
+  const [qtdRefugoStr, setQtdRefugoStr] = useState<string>('');
+  const [justificativaRefugo, setJustificativaRefugo] = useState<string>('');
+
   const saldoRestante = Math.max(0, op.quantidade - (op.quantidadeProduzida || 0));
+  const percentualAtual = op.quantidade > 0 ? Math.round(((op.quantidadeProduzida || 0) / op.quantidade) * 100) : 0;
   const qtdApontadaNum = parseInt(qtdApontadaStr, 10);
   const qtdValida = !isNaN(qtdApontadaNum) && qtdApontadaNum > 0;
-
-  // Real-time calculation
-  const totalAposApontamento = (op.quantidadeProduzida || 0) + (qtdValida ? qtdApontadaNum : 0);
-  const percentualApos = op.quantidade > 0 ? Math.round((totalAposApontamento / op.quantidade) * 100) : 0;
-  const percentualAtual = op.quantidade > 0 ? Math.round(((op.quantidadeProduzida || 0) / op.quantidade) * 100) : 0;
 
   const handlePreencherQtd = (valor: number) => {
     setQtdApontadaStr(valor.toString());
@@ -89,7 +95,15 @@ export const ModalApontamentoProducao: React.FC<ModalApontamentoProducaoProps> =
       return;
     }
 
-    aoConfirmar(op.id, novoStatus, qtdApontadaNum, observacoes, operador);
+    const qtdRefugadaNum = pecasRefugadas ? parseInt(qtdRefugoStr, 10) || 0 : 0;
+    const dadosQualidade: DadosQualidadeApontamento = {
+      revisadoQualidade,
+      pecasRefugadas,
+      quantidadeRefugada: qtdRefugadaNum,
+      justificativa: justificativaRefugo,
+    };
+
+    aoConfirmar(op.id, novoStatus, qtdApontadaNum, observacoes, operador, dadosQualidade);
   };
 
   const statusColors: Record<StatusProducao, { bg: string; text: string; border: string }> = {
@@ -308,31 +322,127 @@ export const ModalApontamentoProducao: React.FC<ModalApontamentoProducaoProps> =
               </button>
             </div>
 
-            {/* Simulação em tempo real */}
-            {qtdValida && (
-              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Previsão Acumulada da OP:</span>
-                  <span className="font-bold text-emerald-400">
-                    {totalAposApontamento} / {op.quantidade} un ({percentualApos}%)
-                  </span>
+            {/* Inspeção de Qualidade & Controle de Peças Refugadas */}
+            <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                <div className="flex items-center space-x-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs font-bold text-slate-200">Inspeção de Qualidade & Refugo</span>
                 </div>
-                <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      percentualApos >= 100 ? 'bg-emerald-500' : 'bg-amber-400'
-                    }`}
-                    style={{ width: `${Math.min(100, percentualApos)}%` }}
+                <span className="text-[10px] text-slate-500 font-medium">Controle de Chão de Fábrica</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* 1. Revisado pela Qualidade */}
+                <div className="space-y-1.5">
+                  <span className="block text-xs font-semibold text-slate-300">
+                    Revisado pela Qualidade?
+                  </span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setRevisadoQualidade(true)}
+                      className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
+                        revisadoQualidade
+                          ? 'bg-emerald-500 text-slate-950 shadow-xs'
+                          : 'bg-slate-900 border border-slate-700 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>SIM</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRevisadoQualidade(false)}
+                      className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
+                        !revisadoQualidade
+                          ? 'bg-slate-700 text-slate-100 border border-slate-600 shadow-xs'
+                          : 'bg-slate-900 border border-slate-700 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>NÃO</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. Peças Refugadas */}
+                <div className="space-y-1.5">
+                  <span className="block text-xs font-semibold text-slate-300">
+                    Peças Refugadas?
+                  </span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPecasRefugadas(false);
+                        setQtdRefugoStr('');
+                      }}
+                      className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
+                        !pecasRefugadas
+                          ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 shadow-xs'
+                          : 'bg-slate-900 border border-slate-700 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>NÃO</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPecasRefugadas(true)}
+                      className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
+                        pecasRefugadas
+                          ? 'bg-red-500 text-white font-bold shadow-xs'
+                          : 'bg-slate-900 border border-slate-700 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <AlertOctagon className="w-3.5 h-3.5" />
+                      <span>SIM</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quantidade de Peças Refugadas (se SIM) */}
+              {pecasRefugadas && (
+                <div className="bg-red-500/10 border border-red-500/30 p-2.5 rounded-lg space-y-1.5 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="input-qtd-refugada" className="text-xs font-semibold text-red-300 flex items-center space-x-1.5">
+                      <AlertOctagon className="w-3.5 h-3.5 text-red-400" />
+                      <span>Quantas peças refugadas?</span>
+                    </label>
+                    <span className="text-[10px] text-red-400 font-mono">unidades com defeito</span>
+                  </div>
+                  <input
+                    id="input-qtd-refugada"
+                    type="number"
+                    min="1"
+                    value={qtdRefugoStr}
+                    onChange={(e) => setQtdRefugoStr(e.target.value)}
+                    placeholder="Informe a quantidade de peças refugadas..."
+                    className="w-full bg-slate-950 border border-red-500/40 rounded-lg px-3 py-1.5 text-xs text-red-200 placeholder-red-400/50 focus:outline-none focus:border-red-400 font-mono"
                   />
                 </div>
-                {totalAposApontamento >= op.quantidade && (
-                  <p className="text-[11px] text-emerald-400 font-medium flex items-center space-x-1 mt-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Meta de produção total desta OP atingida!</span>
-                  </p>
-                )}
+              )}
+
+              {/* 3. Justificativa por escrito (1 a 2 linhas) */}
+              <div className="space-y-1">
+                <label
+                  htmlFor="input-justificativa-refugo"
+                  className="block text-xs font-semibold text-slate-300"
+                >
+                  Justificativa por escrito (1 a 2 linhas):
+                </label>
+                <textarea
+                  id="input-justificativa-refugo"
+                  rows={2}
+                  value={justificativaRefugo}
+                  onChange={(e) => setJustificativaRefugo(e.target.value)}
+                  placeholder="Escreva a justificativa da revisão ou motivo de eventuais refugos/avarias..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 resize-none"
+                />
               </div>
-            )}
+            </div>
           </div>
 
           {/* Dados Complementares (Operador e Observações) */}
@@ -405,6 +515,31 @@ export const ModalApontamentoProducao: React.FC<ModalApontamentoProducaoProps> =
                         <span className="text-slate-500 text-[10px]">
                           {ap.dataHora} • Por: {ap.operador}
                         </span>
+                        {(ap.revisadoQualidade !== undefined || ap.pecasRefugadas) && (
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            {ap.revisadoQualidade !== undefined && (
+                              <span
+                                className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                  ap.revisadoQualidade
+                                    ? 'bg-emerald-500/20 text-emerald-300'
+                                    : 'bg-slate-800 text-slate-400'
+                                }`}
+                              >
+                                Qualidade: {ap.revisadoQualidade ? 'SIM' : 'NÃO'}
+                              </span>
+                            )}
+                            {ap.pecasRefugadas && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-red-500/20 text-red-300">
+                                Refugo: {ap.quantidadeRefugada || 0} un
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {ap.justificativaRefugo && (
+                          <p className="text-[10px] text-amber-300/90 italic mt-0.5">
+                            Justificativa: {ap.justificativaRefugo}
+                          </p>
+                        )}
                         {ap.observacoes && (
                           <p className="text-[10px] text-slate-400 italic mt-0.5">{ap.observacoes}</p>
                         )}

@@ -133,23 +133,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSucesso, tema =
             <button
               type="submit"
               disabled={carregando}
-              className="w-full mt-2 py-3 px-4 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-blue-600/30 flex items-center justify-center space-x-2 transition-all disabled:opacity-50"
+              className="w-full mt-2 py-3 px-4 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-blue-600/30 flex items-center justify-center space-x-2 transition-all disabled:opacity-50 cursor-pointer"
             >
               <span>{carregando ? 'Autenticando...' : 'Entrar no Sistema'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
-
-            {/* Dica de Perfis de Acesso */}
-            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span>Acesso Completo (Admin PCP):</span>
-                <span className="font-mono font-semibold text-blue-600 dark:text-blue-400">admin / 123456</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Perfil Visualizador (Consulta e Filtros):</span>
-                <span className="font-mono font-semibold text-amber-600 dark:text-amber-400">visualizador / 123456</span>
-              </div>
-            </div>
           </form>
         </div>
 

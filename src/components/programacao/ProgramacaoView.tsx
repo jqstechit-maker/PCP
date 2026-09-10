@@ -569,13 +569,14 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
         <ModalApontamentoProducao
           op={opModal}
           aoFechar={() => setOpModal(null)}
-          aoConfirmar={(opId, novoStatus, quantidadeApontada, observacoes, operador) => {
+          aoConfirmar={(opId, novoStatus, quantidadeApontada, observacoes, operador, dadosQualidade) => {
             storageService.atualizarStatusOp(
               opId,
               novoStatus,
               quantidadeApontada,
               observacoes,
-              operador
+              operador,
+              dadosQualidade
             );
             recarregarDados();
             setOpModal(null);

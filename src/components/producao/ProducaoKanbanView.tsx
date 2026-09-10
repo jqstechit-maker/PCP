@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { storageService } from '../../services/storageService';
-import { OrdemProducao, StatusProducao } from '../../types';
+import { DadosQualidadeApontamento, OrdemProducao, StatusProducao } from '../../types';
 import { ModalApontamentoProducao } from './ModalApontamentoProducao';
 
 interface ProducaoKanbanViewProps {
@@ -51,14 +51,16 @@ export const ProducaoKanbanView: React.FC<ProducaoKanbanViewProps> = () => {
     novoStatus: StatusProducao,
     quantidadeApontada: number,
     observacoes?: string,
-    operador?: string
+    operador?: string,
+    dadosQualidade?: DadosQualidadeApontamento
   ) => {
     storageService.atualizarStatusOp(
       opId,
       novoStatus,
       quantidadeApontada,
       observacoes,
-      operador
+      operador,
+      dadosQualidade
     );
     setOpParaApontamento(null);
     recarregar();
