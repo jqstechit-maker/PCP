@@ -437,10 +437,10 @@ export const ProgramacaoView: React.FC<ProgramacaoViewProps> = ({
                       <td className="p-3 font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
                         {formatarDataBR(obterDataPedido(op))}
                       </td>
-                      <td className="p-3 font-semibold text-slate-900 dark:text-slate-100 max-w-[180px] truncate">
+                      <td className="p-3 font-semibold text-slate-900 dark:text-slate-100 max-w-[260px] xl:max-w-[400px] truncate">
                         {op.cliente}
                       </td>
-                      <td className="p-3 max-w-[220px]">
+                      <td className="p-3 max-w-[280px] xl:max-w-[450px]">
                         <p className="font-medium text-slate-800 dark:text-slate-200 truncate">
                           {op.produto}
                         </p>

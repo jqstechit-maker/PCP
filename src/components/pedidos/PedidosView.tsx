@@ -5,14 +5,18 @@ import {
   Filter,
   Layers,
   Package,
+  PlusCircle,
   Search,
   Shield,
   ShieldCheck,
+  SlidersHorizontal,
   X,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { storageService } from '../../services/storageService';
 import { Pedido } from '../../types';
+import { ModalInserirPedidoManual } from './ModalInserirPedidoManual';
+import { ModalManutencaoPedidos } from './ModalManutencaoPedidos';
 
 type FiltroRapido = 'TODOS' | 'EM_ABERTO' | 'EM_PRODUCAO' | 'FINALIZADO';
 
@@ -22,6 +26,10 @@ export const PedidosView: React.FC = () => {
   const [podeEditar, setPodeEditar] = useState<boolean>(() => storageService.podeEditar());
   const [filtroRapido, setFiltroRapido] = useState<FiltroRapido>('TODOS');
   const [buscaTexto, setBuscaTexto] = useState<string>('');
+
+  // Modais de Manutenção e Inserção Manual
+  const [modalManutencaoAberto, setModalManutencaoAberto] = useState<boolean>(false);
+  const [modalInserirAberto, setModalInserirAberto] = useState<boolean>(false);
 
   // Atualização em tempo real quando houver mudanças no storage ou apontamentos
   useEffect(() => {
@@ -116,8 +124,31 @@ export const PedidosView: React.FC = () => {
           </p>
         </div>
 
-        {/* Indicador de Privilégio Admin / Visualizador / Operacional */}
-        <div className="flex items-center space-x-2">
+        {/* Ações de Gestão de Pedidos e Indicador de Privilégio */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Botão Manutenção de Pedidos */}
+          <button
+            onClick={() => setModalManutencaoAberto(true)}
+            className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-850 text-slate-100 rounded-xl text-xs font-bold transition-all border border-slate-700 shadow-xs hover:border-slate-600 cursor-pointer"
+            title="Abrir painel completo de manutenção de pedidos"
+          >
+            <SlidersHorizontal className="w-4 h-4 text-amber-400" />
+            <span>Manutenção de Pedidos</span>
+          </button>
+
+          {/* Botão Inserir Pedidos Manualmente */}
+          {podeEditar && (
+            <button
+              onClick={() => setModalInserirAberto(true)}
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              title="Inserir novo pedido manualmente com base nos campos da planilha de importação"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>Inserir Pedido Manualmente</span>
+            </button>
+          )}
+
+          {/* Indicador de Privilégio Admin / Visualizador / Operacional */}
           {!podeEditar ? (
             <div className="px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center space-x-2 text-xs text-amber-400">
               <Shield className="w-4 h-4 text-amber-400 shrink-0" />
@@ -371,7 +402,7 @@ export const PedidosView: React.FC = () => {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
           {pedidosFiltrados.map((ped) => {
             const pct = ped.totalItens > 0 ? Math.round((ped.totalProduzido / ped.totalItens) * 100) : 0;
             const finalizado = isPedidoFinalizado(ped);
@@ -477,6 +508,25 @@ export const PedidosView: React.FC = () => {
             );
           })}
         </div>
+      )}
+
+      {/* Modal Manutenção de Pedidos */}
+      {modalManutencaoAberto && (
+        <ModalManutencaoPedidos
+          aoFechar={() => setModalManutencaoAberto(false)}
+          aoAtualizar={() => setPedidos(storageService.getPedidos())}
+        />
+      )}
+
+      {/* Modal Inserir Pedido Manualmente */}
+      {modalInserirAberto && (
+        <ModalInserirPedidoManual
+          pedidoParaEditar={null}
+          aoFechar={() => setModalInserirAberto(false)}
+          aoSalvarSucesso={() => {
+            setPedidos(storageService.getPedidos());
+          }}
+        />
       )}
     </div>
   );

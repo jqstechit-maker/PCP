@@ -13,6 +13,7 @@ import {
   ApontamentoProducao,
   Cliente,
   ConfiguracoesSistema,
+  DadosPedidoManual,
   DadosQualidadeApontamento,
   IndicadoresKpi,
   LogImportacao,
@@ -464,6 +465,305 @@ class StorageService {
     firebaseSyncService.syncPedidosToCloud(pedidos);
     mysqlSyncService.syncPedidosToMysql(pedidos);
     this.dispatchSyncEvent();
+  }
+
+  public adicionarPedidoManual(dados: DadosPedidoManual): { sucesso: boolean; mensagem: string } {
+    if (!this.podeEditar()) {
+      return { sucesso: false, mensagem: 'Operação bloqueada: Usuário com permissão de Somente Leitura.' };
+    }
+
+    const pedidoNum = (dados.pedidoNumber || '').trim().toUpperCase();
+    const opNum = (dados.opNumber || '').trim().toUpperCase();
+
+    if (!pedidoNum) {
+      return { sucesso: false, mensagem: 'Número do Pedido é obrigatório.' };
+    }
+    if (!opNum) {
+      return { sucesso: false, mensagem: 'Número da O.P é obrigatório.' };
+    }
+    if (!dados.cliente || !dados.cliente.trim()) {
+      return { sucesso: false, mensagem: 'Nome do Cliente é obrigatório.' };
+    }
+    if (!dados.quantidade || dados.quantidade <= 0) {
+      return { sucesso: false, mensagem: 'Quantidade de Big Bags deve ser maior que zero.' };
+    }
+
+    const existingOps = this.getOps();
+    const opJaExiste = existingOps.find((o) => o.opNumber.trim().toUpperCase() === opNum);
+
+    const qtdTotal = Number(dados.quantidade) || 100;
+    const qtdProduzida = Number(dados.quantidadeProduzida || 0);
+    const statusOp = dados.status || 'AGUARDANDO';
+    const prioridade = dados.prioridade || 'MÉDIA';
+    const empresaId = dados.empresaId ? dados.empresaId.trim().toUpperCase().charAt(0) : 'V';
+    const dataPedido = dados.dataPedido || new Date().toISOString().substring(0, 10);
+    const dataProgramada = dados.dataProgramada || dataPedido;
+    const dataEntrega = dados.dataEntrega || dataProgramada;
+
+    const opData: OrdemProducao = {
+      id: opJaExiste ? opJaExiste.id : `op-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      opNumber: opNum,
+      empresaId: empresaId === 'L' ? 'L' : 'V',
+      pedidoNumber: pedidoNum,
+      dataPedido,
+      cliente: dados.cliente.trim(),
+      desenho: dados.desenho?.trim() || '',
+      produto: dados.produto?.trim() || 'Big Bag Standard',
+      modelo: dados.modelo?.trim() || 'Saia Superior / Funil Inferior',
+      dimensoes: dados.dimensoes?.trim() || '90 x 90 x 120 cm',
+      dataProgramada,
+      statusProcesso: statusOp,
+      status: statusOp,
+      dataConfec: dados.dataConfec || dataEntrega,
+      quantidade: qtdTotal,
+      quantidadeProduzida: qtdProduzida,
+      lote: dados.lote?.trim() || '',
+      eficiencia: Number(dados.eficiencia || (statusOp === 'FINALIZADO' ? 100 : 95)),
+      prioridade,
+      statusPedido: dados.statusPedido || 'PENDENTE',
+      dataEntrega,
+      capacidadeCargaKg: Number(dados.capacidadeCargaKg || 1000),
+      tecidoGrm: Number(dados.tecidoGrm || 160),
+      observacoes: dados.observacoes?.trim() || 'Inserido manualmente no sistema',
+      tempoEstimadoHoras: Math.ceil(qtdTotal / 25),
+      alteradoEm: new Date().toISOString(),
+      apontamentos: opJaExiste?.apontamentos || [],
+    };
+
+    let opsAtualizadas: OrdemProducao[];
+    if (opJaExiste) {
+      opsAtualizadas = existingOps.map((o) => (o.opNumber.trim().toUpperCase() === opNum ? opData : o));
+    } else {
+      opsAtualizadas = [opData, ...existingOps];
+    }
+
+    this.saveOps(opsAtualizadas);
+    this.syncDerivadosComOps();
+
+    // Se o status do pedido foi especificado como CANCELADO
+    if (dados.statusPedido === 'CANCELADO') {
+      const peds = this.getPedidos();
+      const ped = peds.find((p) => p.pedidoNumber.toUpperCase() === pedidoNum);
+      if (ped) {
+        ped.status = 'CANCELADO';
+        this.savePedidos(peds);
+      }
+    }
+
+    this.addLogSistema(
+      'PEDIDOS',
+      'INSERCAO_MANUAL',
+      `Pedido #${pedidoNum} (OP #${opNum}) inserido manualmente com ${qtdTotal} Big Bags para ${dados.cliente.trim()}.`,
+      'SUCCESS'
+    );
+
+    return { sucesso: true, mensagem: `Pedido #${pedidoNum} inserido com sucesso!` };
+  }
+
+  public atualizarPedidoManual(
+    pedidoId: string,
+    dados: {
+      cliente?: string;
+      dataPedido?: string;
+      dataPrevisaoEntrega?: string;
+      status?: Pedido['status'];
+      totalItens?: number;
+      observacoes?: string;
+    }
+  ): { sucesso: boolean; mensagem: string } {
+    if (!this.podeEditar()) {
+      return { sucesso: false, mensagem: 'Operação bloqueada: Usuário com permissão de Somente Leitura.' };
+    }
+
+    const pedidos = this.getPedidos();
+    const pedIdx = pedidos.findIndex((p) => p.id === pedidoId);
+    if (pedIdx === -1) {
+      return { sucesso: false, mensagem: 'Pedido não encontrado.' };
+    }
+
+    const pedido = pedidos[pedIdx];
+    if (dados.cliente) pedido.cliente = dados.cliente.trim();
+    if (dados.dataPedido) pedido.dataPedido = dados.dataPedido;
+    if (dados.dataPrevisaoEntrega) pedido.dataPrevisaoEntrega = dados.dataPrevisaoEntrega;
+    if (dados.status) pedido.status = dados.status;
+    if (dados.totalItens !== undefined && dados.totalItens > 0) pedido.totalItens = dados.totalItens;
+
+    pedidos[pedIdx] = pedido;
+    this.savePedidos(pedidos);
+
+    // Sincronizar dados com as OPs vinculadas
+    const ops = this.getOps();
+    let opsMudaram = false;
+    const opsAtualizadas = ops.map((op) => {
+      if (op.pedidoNumber.toUpperCase().trim() === pedido.pedidoNumber.toUpperCase().trim()) {
+        opsMudaram = true;
+        return {
+          ...op,
+          cliente: dados.cliente ? dados.cliente.trim() : op.cliente,
+          dataPedido: dados.dataPedido || op.dataPedido,
+          dataEntrega: dados.dataPrevisaoEntrega || op.dataEntrega,
+          statusPedido: dados.status || op.statusPedido,
+          alteradoEm: new Date().toISOString(),
+        };
+      }
+      return op;
+    });
+
+    if (opsMudaram) {
+      this.saveOps(opsAtualizadas);
+    }
+
+    this.addLogSistema(
+      'PEDIDOS',
+      'EDICAO',
+      `Pedido #${pedido.pedidoNumber} atualizado por ${this.getUsuario().nome}.`,
+      'INFO'
+    );
+
+    return { sucesso: true, mensagem: `Pedido #${pedido.pedidoNumber} atualizado com sucesso!` };
+  }
+
+  public excluirPedido(pedidoId: string, excluirOpsVinculadas: boolean = true): { sucesso: boolean; mensagem: string } {
+    if (!this.podeEditar()) {
+      return { sucesso: false, mensagem: 'Operação bloqueada: Usuário com permissão de Somente Leitura.' };
+    }
+
+    const pedidos = this.getPedidos();
+    const pedido = pedidos.find((p) => p.id === pedidoId);
+    if (!pedido) {
+      return { sucesso: false, mensagem: 'Pedido não encontrado.' };
+    }
+
+    const novosPedidos = pedidos.filter((p) => p.id !== pedidoId);
+    this.savePedidos(novosPedidos);
+
+    if (excluirOpsVinculadas) {
+      const ops = this.getOps();
+      const opsFiltradas = ops.filter(
+        (op) =>
+          op.pedidoNumber.toUpperCase().trim() !== pedido.pedidoNumber.toUpperCase().trim() &&
+          !pedido.ops.includes(op.opNumber)
+      );
+      this.saveOps(opsFiltradas);
+      this.syncDerivadosComOps();
+    }
+
+    this.addLogSistema(
+      'PEDIDOS',
+      'EXCLUSAO',
+      `Pedido #${pedido.pedidoNumber} excluído do sistema por ${this.getUsuario().nome}.`,
+      'WARNING'
+    );
+
+    return { sucesso: true, mensagem: `Pedido #${pedido.pedidoNumber} excluído com sucesso!` };
+  }
+
+  public duplicarPedido(
+    pedidoId: string,
+    novoNumeroPedido?: string,
+    novoNumeroOp?: string,
+    novaQuantidade?: number
+  ): { sucesso: boolean; mensagem: string } {
+    if (!this.podeEditar()) {
+      return { sucesso: false, mensagem: 'Operação bloqueada: Usuário com permissão de Somente Leitura.' };
+    }
+
+    const pedidos = this.getPedidos();
+    const pedidoOriginal = pedidos.find((p) => p.id === pedidoId);
+    if (!pedidoOriginal) {
+      return { sucesso: false, mensagem: 'Pedido original não localizado.' };
+    }
+
+    const ops = this.getOps();
+    // Localizar a primeira OP vinculada para extrair dados técnicos
+    const opOriginal = ops.find(
+      (o) =>
+        pedidoOriginal.ops.includes(o.opNumber) ||
+        o.pedidoNumber.trim().toUpperCase() === pedidoOriginal.pedidoNumber.trim().toUpperCase()
+    );
+
+    // Gerar número de pedido duplicado se não fornecido
+    let numPed = novoNumeroPedido?.trim();
+    if (!numPed) {
+      let sufixo = 1;
+      numPed = `${pedidoOriginal.pedidoNumber}-C`;
+      while (pedidos.some((p) => p.pedidoNumber.toUpperCase() === numPed!.toUpperCase())) {
+        sufixo++;
+        numPed = `${pedidoOriginal.pedidoNumber}-C${sufixo}`;
+      }
+    } else {
+      if (pedidos.some((p) => p.pedidoNumber.toUpperCase() === numPed!.toUpperCase())) {
+        return { sucesso: false, mensagem: `O número de pedido #${numPed} já existe no sistema.` };
+      }
+    }
+
+    // Gerar número de OP duplicado se não fornecido
+    let numOp = novoNumeroOp?.trim();
+    if (!numOp) {
+      if (opOriginal) {
+        let sufixoOp = 1;
+        numOp = `${opOriginal.opNumber}-C`;
+        while (ops.some((o) => o.opNumber.toUpperCase() === numOp!.toUpperCase())) {
+          sufixoOp++;
+          numOp = `${opOriginal.opNumber}-C${sufixoOp}`;
+        }
+      } else {
+        numOp = `OP-${Date.now().toString().slice(-5)}`;
+      }
+    } else {
+      if (ops.some((o) => o.opNumber.toUpperCase() === numOp!.toUpperCase())) {
+        return { sucesso: false, mensagem: `O número da O.P #${numOp} já está em uso.` };
+      }
+    }
+
+    const hojeStr = new Date().toISOString().substring(0, 10);
+    const qtdTotal = Number(novaQuantidade || pedidoOriginal.totalItens || opOriginal?.quantidade || 100);
+
+    const novaOp: OrdemProducao = {
+      id: `op-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      opNumber: numOp,
+      empresaId: opOriginal?.empresaId || 'V',
+      pedidoNumber: numPed,
+      dataPedido: hojeStr,
+      cliente: opOriginal?.cliente || pedidoOriginal.cliente,
+      desenho: opOriginal?.desenho || '',
+      produto: opOriginal?.produto || 'Big Bag Standard',
+      modelo: opOriginal?.modelo || 'Saia Superior / Funil Inferior',
+      dimensoes: opOriginal?.dimensoes || '90 x 90 x 120 cm',
+      dataProgramada: hojeStr,
+      statusProcesso: 'AGUARDANDO',
+      status: 'AGUARDANDO',
+      dataConfec: hojeStr,
+      quantidade: qtdTotal,
+      quantidadeProduzida: 0,
+      lote: opOriginal?.lote ? `${opOriginal.lote}-C` : '',
+      eficiencia: opOriginal?.eficiencia || 95,
+      prioridade: opOriginal?.prioridade || 'MÉDIA',
+      statusPedido: 'PENDENTE',
+      dataEntrega: pedidoOriginal.dataPrevisaoEntrega || hojeStr,
+      capacidadeCargaKg: opOriginal?.capacidadeCargaKg || 1000,
+      tecidoGrm: opOriginal?.tecidoGrm || 160,
+      observacoes: `Cópia do Pedido #${pedidoOriginal.pedidoNumber}. ${opOriginal?.observacoes || ''}`.trim(),
+      tempoEstimadoHoras: Math.ceil(qtdTotal / 25),
+      alteradoEm: new Date().toISOString(),
+      apontamentos: [],
+    };
+
+    const opsAtualizadas = [novaOp, ...ops];
+    this.saveOps(opsAtualizadas);
+    this.syncDerivadosComOps();
+
+    this.addLogSistema(
+      'PEDIDOS',
+      'DUPLICACAO',
+      `Pedido #${pedidoOriginal.pedidoNumber} duplicado como #${numPed} (OP #${numOp}) com ${qtdTotal} un por ${this.getUsuario().nome}.`,
+      'SUCCESS'
+    );
+
+    return {
+      sucesso: true,
+      mensagem: `Pedido duplicado com sucesso! Novo Pedido: #${numPed} / Nova OP: #${numOp}`,
+    };
   }
 
   private getClientesDirect(): Cliente[] {

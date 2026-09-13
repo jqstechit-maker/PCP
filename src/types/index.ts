@@ -77,6 +77,31 @@ export interface Pedido {
   valorTotal?: number;
 }
 
+export interface DadosPedidoManual {
+  pedidoNumber: string; // Ex: PED-1050
+  opNumber: string; // Ex: OP-2026-001
+  empresaId: string; // 'V' ou 'L'
+  cliente: string;
+  desenho?: string;
+  produto: string;
+  modelo: string;
+  dimensoes?: string;
+  quantidade: number;
+  quantidadeProduzida?: number;
+  dataPedido: string; // YYYY-MM-DD
+  dataProgramada: string; // YYYY-MM-DD
+  dataConfec?: string; // YYYY-MM-DD
+  dataEntrega: string; // YYYY-MM-DD
+  prioridade: PrioridadeOp;
+  status: StatusProducao; // Status da OP
+  statusPedido: 'PENDENTE' | 'EM_PRODUCAO' | 'CONCLUIDO' | 'CANCELADO';
+  lote?: string;
+  eficiencia?: number;
+  capacidadeCargaKg?: number;
+  tecidoGrm?: number;
+  observacoes?: string;
+}
+
 export interface Cliente {
   id: string;
   nome: string;

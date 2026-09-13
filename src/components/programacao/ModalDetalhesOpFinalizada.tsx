@@ -107,7 +107,7 @@ export const ModalDetalhesOpFinalizada: React.FC<ModalDetalhesOpFinalizadaProps>
             <div>
               <div className="flex items-center space-x-2">
                 <h3 className="text-base font-bold text-slate-100">
-                  Dossiê de Produção & Qualidade — OP #{op.opNumber}
+                  Registro da Produção — OP #{op.opNumber}
                 </h3>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                   FINALIZADO
@@ -124,7 +124,7 @@ export const ModalDetalhesOpFinalizada: React.FC<ModalDetalhesOpFinalizadaProps>
               onClick={handleExportarPdf}
               disabled={gerandoPdf}
               className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 active:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
-              title="Exportar Dossiê Completo para PDF"
+              title="Exportar Registro da Produção para PDF"
             >
               <FileDown className="w-4 h-4" />
               <span>{gerandoPdf ? 'Exportando...' : 'Exportar PDF'}</span>
@@ -506,7 +506,7 @@ export const ModalDetalhesOpFinalizada: React.FC<ModalDetalhesOpFinalizadaProps>
               onClick={aoFechar}
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-200 text-xs font-bold rounded-xl transition-colors cursor-pointer"
             >
-              Fechar Dossiê
+              Fechar Registro
             </button>
           </div>
         </div>

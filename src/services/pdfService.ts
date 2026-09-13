@@ -201,7 +201,7 @@ export class PdfService {
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text('DOSSIÊ DE PRODUÇÃO, CONTROLE DE QUALIDADE & RASTREABILIDADE', 14, 20);
+    doc.text('REGISTRO DA PRODUÇÃO, CONTROLE DE QUALIDADE & RASTREABILIDADE', 14, 20);
 
     // Date/Time Stamp
     const dataHoraStr = new Date().toLocaleDateString('pt-BR', {
@@ -455,7 +455,7 @@ export class PdfService {
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(148, 163, 184);
       doc.text(
-        `Virtude Big Bag's — Dossiê de Produção e Qualidade — OP #${op.opNumber}`,
+        `Virtude Big Bag's — Registro da Produção — OP #${op.opNumber}`,
         14,
         doc.internal.pageSize.getHeight() - 8
       );
@@ -467,7 +467,7 @@ export class PdfService {
       );
     }
 
-    const nomeArquivo = `Dossie_OP_${op.opNumber}_${(op.cliente || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    const nomeArquivo = `Registro_Producao_OP_${op.opNumber}_${(op.cliente || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
     if (typeof window !== 'undefined') {
       doc.save(nomeArquivo);
     }
