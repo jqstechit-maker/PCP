@@ -36,6 +36,7 @@ export const RelatoriosView: React.FC = () => {
   const [statusFiltro, setStatusFiltro] = useState('TODOS');
   const [eficienciaFiltro, setEficienciaFiltro] = useState('TODOS');
   const [clienteExpandido, setClienteExpandido] = useState<string | null>(null);
+  const [orientacaoPdf, setOrientacaoPdf] = useState<'landscape' | 'portrait'>('landscape');
 
   const kpis = storageService.calcularKpis();
   const ops = storageService.getOps();
@@ -323,7 +324,8 @@ export const RelatoriosView: React.FC = () => {
         ...kpis,
         pedidosProgramados: opsFiltradas.length,
         eficienciaGlobal: mediaEficienciaFiltrada,
-      }
+      },
+      orientacaoPdf
     );
   };
 
@@ -357,7 +359,35 @@ export const RelatoriosView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Seletor de Orientação para o PDF */}
+          <div className="flex items-center bg-slate-800/90 border border-slate-700/80 rounded-xl p-1 text-xs text-slate-300">
+            <button
+              type="button"
+              onClick={() => setOrientacaoPdf('landscape')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                orientacaoPdf === 'landscape'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Formato Paisagem (Recomendado - Tabela ampla sem cortes)"
+            >
+              Paisagem
+            </button>
+            <button
+              type="button"
+              onClick={() => setOrientacaoPdf('portrait')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                orientacaoPdf === 'portrait'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Formato Retrato"
+            >
+              Retrato
+            </button>
+          </div>
+
           <button
             onClick={handleExportExcel}
             className="flex items-center space-x-1.5 px-3.5 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-semibold transition-colors"
@@ -369,8 +399,8 @@ export const RelatoriosView: React.FC = () => {
 
           <button
             onClick={handleExportPDF}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs transition-colors shadow-md"
-            title="Gerar relatório impresso em PDF"
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs transition-colors shadow-md"
+            title={`Gerar relatório impresso em PDF (${orientacaoPdf === 'landscape' ? 'Paisagem' : 'Retrato'})`}
           >
             <Download className="w-4 h-4" />
             <span>Baixar PDF</span>

@@ -1,6 +1,7 @@
 import {
   CheckCircle2,
   Clock,
+  Download,
   Factory,
   Filter,
   Layers,
@@ -13,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { pdfService } from '../../services/pdfService';
 import { storageService } from '../../services/storageService';
 import { Pedido, OrdemProducao } from '../../types';
 import { ModalInserirPedidoManual } from './ModalInserirPedidoManual';
@@ -121,6 +123,16 @@ export const PedidosView: React.FC = () => {
 
         {/* Ações de Gestão de Pedidos e Indicador de Privilégio */}
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Botão Exportar Relatório PDF */}
+          <button
+            onClick={() => pdfService.gerarRelatorioPedidosPDF(pedidosFiltrados, ops, 'landscape')}
+            className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-850 text-slate-100 rounded-xl text-xs font-bold transition-all border border-slate-700 shadow-xs hover:border-slate-600 cursor-pointer"
+            title="Exportar relatório consolidado de pedidos em PDF com formatação alinhada"
+          >
+            <Download className="w-4 h-4 text-amber-400" />
+            <span>Exportar PDF</span>
+          </button>
+
           {/* Botão Manutenção de Pedidos */}
           <button
             onClick={() => setModalManutencaoAberto(true)}
