@@ -18,6 +18,7 @@ class ExcelService {
       'O.P',
       'ID.',
       'PEDIDO',
+      'DATA DO PEDIDO',
       'CLIENTE',
       'DESENHO',
       'PRODUTO',
@@ -25,6 +26,7 @@ class ExcelService {
       'DATA PROGAMADA',
       'STATUS DO PROCESSO',
       'DATA CONFEC.',
+      'QUANTIDADE',
       'QUANTIDADE PRODUZIDA',
       'LOTE',
       'EFICIENCIA',
@@ -37,6 +39,7 @@ class ExcelService {
         'OP-2026-095',
         'V',
         'PED-1049',
+        '2026-07-20',
         'Agroquímica do Brasil S.A.',
         'DES-402',
         'Big Bag Standard 4 Alças',
@@ -45,14 +48,16 @@ class ExcelService {
         'AGUARDANDO',
         '2026-07-28',
         1500,
+        0,
         'LOTE-8821',
-        100.0,
-        'EM PRODUCAO',
+        0.0,
+        'PENDENTE',
       ],
       [
         'OP-2026-096',
         'L',
         'PED-1050',
+        '2026-07-18',
         'Fertilizantes Safra Forte Ltda',
         'DES-509',
         'Big Bag Travado Q-Bag',
@@ -61,14 +66,16 @@ class ExcelService {
         'CORTE',
         '2026-07-26',
         600,
+        0,
         'LOTE-8822',
-        93.5,
+        15.0,
         'EM PRODUCAO',
       ],
       [
         'OP-2026-097',
         'V',
         'PED-1051',
+        '2026-07-19',
         'Mineração Vale Dourado S/A',
         'DES-610',
         'Big Bag Carga Pesada Mineração',
@@ -77,9 +84,10 @@ class ExcelService {
         'PREPARAÇÃO',
         '2026-07-27',
         2000,
+        0,
         'LOTE-8823',
-        90.0,
-        'PENDENTE',
+        30.0,
+        'EM PRODUCAO',
       ],
     ];
 
@@ -90,6 +98,7 @@ class ExcelService {
       { wch: 15 }, // O.P
       { wch: 8 },  // ID. (EMPRESA L/V)
       { wch: 14 }, // PEDIDO
+      { wch: 16 }, // DATA DO PEDIDO
       { wch: 30 }, // CLIENTE
       { wch: 14 }, // DESENHO
       { wch: 32 }, // PRODUTO
@@ -97,6 +106,7 @@ class ExcelService {
       { wch: 16 }, // DATA PROGAMADA
       { wch: 22 }, // STATUS DO PROCESSO
       { wch: 16 }, // DATA CONFEC.
+      { wch: 16 }, // QUANTIDADE
       { wch: 22 }, // QUANTIDADE PRODUZIDA
       { wch: 14 }, // LOTE
       { wch: 14 }, // EFICIENCIA
@@ -473,15 +483,52 @@ class ExcelService {
             }
 
             const opKey = opNumber.toUpperCase();
-            const quantidadeProduzida = parseInt(qtdProduzidaRaw) || 0;
-            const quantidade =
-              parseInt(quantidadeRaw) || (quantidadeProduzida > 0 ? quantidadeProduzida : 100);
+            const existing = opMap.get(opKey);
             const status = this.normalizarStatus(statusProcessoRaw || statusPedidoRaw);
             const prioridade = this.normalizarPrioridade(prioridadeRaw);
-            let eficiencia = parseFloat(eficiencaRaw) || 95.0;
+
+            // Resolução robusta de Quantidade Total e Quantidade Produzida
+            let quantidade = parseInt(quantidadeRaw) || 0;
+            let quantidadeProduzida = parseInt(qtdProduzidaRaw) || 0;
+
+            if (quantidade === 0 && quantidadeProduzida > 0) {
+              // Se a planilha tinha apenas uma coluna chamada 'QUANTIDADE PRODUZIDA'
+              quantidade = quantidadeProduzida;
+              if (status !== 'FINALIZADO') {
+                quantidadeProduzida = existing ? existing.quantidadeProduzida || 0 : 0;
+              }
+            } else if (quantidade > 0 && status !== 'FINALIZADO') {
+              if (quantidadeProduzida >= quantidade) {
+                // Se a planilha repetiu a quantidade total na coluna de produzido para uma OP em andamento
+                quantidadeProduzida = existing ? existing.quantidadeProduzida || 0 : 0;
+              }
+            }
+
+            if (quantidade <= 0) {
+              quantidade = 100;
+            }
+
+            if (status === 'FINALIZADO') {
+              quantidadeProduzida = quantidade;
+            }
+
+            let eficiencia = parseFloat(eficiencaRaw) || 0;
             if (status === 'FINALIZADO') {
               eficiencia = 100.0;
+            } else if (eficiencia === 0) {
+              if (quantidadeProduzida > 0) {
+                eficiencia = Math.round((quantidadeProduzida / quantidade) * 100);
+              } else if (status === 'CORTE') {
+                eficiencia = 20.0;
+              } else if (status === 'PREPARAÇÃO') {
+                eficiencia = 50.0;
+              } else if (status === 'CONFECÇÃO') {
+                eficiencia = 75.0;
+              } else {
+                eficiencia = 0.0;
+              }
             }
+
             const dataProgramada =
               this.normalizarData(dataProgRaw) || new Date().toISOString().substring(0, 10);
             const dataConfec = this.normalizarData(dataConfecRaw);
@@ -493,8 +540,16 @@ class ExcelService {
             else if (empresaId.includes('VIRTUDE')) empresaId = 'V';
             else if (!empresaId) empresaId = 'V';
 
+            // Status comercial do pedido derivado da etapa fabril
+            const statusPedidoCalculado =
+              status === 'FINALIZADO'
+                ? 'CONCLUIDO'
+                : status === 'AGUARDANDO' && quantidadeProduzida === 0
+                ? 'PENDENTE'
+                : 'EM PRODUCAO';
+
             const opData: OrdemProducao = {
-              id: opMap.get(opKey)?.id || `op-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+              id: existing?.id || `op-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
               opNumber: opNumber.toUpperCase(),
               empresaId,
               pedidoNumber: pedidoNumber ? pedidoNumber.toUpperCase() : 'PED-VAR',
@@ -512,7 +567,7 @@ class ExcelService {
               lote: lote || '',
               eficiencia,
               prioridade,
-              statusPedido: statusPedidoRaw || 'EM PRODUCAO',
+              statusPedido: statusPedidoCalculado,
               dataEntrega,
               capacidadeCargaKg: parseInt(capacidadeRaw) || 1000,
               tecidoGrm: parseInt(gramaturaRaw) || 160,
@@ -521,7 +576,6 @@ class ExcelService {
               alteradoEm: new Date().toISOString().replace('T', ' ').substring(0, 19),
             };
 
-            const existing = opMap.get(opKey);
             if (!existing) {
               // New OP
               registrosNovos++;

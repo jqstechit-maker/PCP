@@ -611,7 +611,19 @@ export const ModalInserirPedidoManual: React.FC<ModalInserirPedidoManualProps> =
                 </label>
                 <select
                   value={statusOp}
-                  onChange={(e) => setStatusOp(e.target.value as StatusProducao)}
+                  onChange={(e) => {
+                    const novoStatus = e.target.value as StatusProducao;
+                    setStatusOp(novoStatus);
+                    if (novoStatus === 'FINALIZADO') {
+                      setStatusPedido('CONCLUIDO');
+                      setEficiencia(100);
+                    } else if (novoStatus === 'AGUARDANDO') {
+                      setStatusPedido('PENDENTE');
+                      setQuantidadeProduzida(0);
+                    } else {
+                      setStatusPedido('EM_PRODUCAO');
+                    }
+                  }}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-500 transition-colors"
                 >
                   <option value="AGUARDANDO">AGUARDANDO INÍCIO</option>

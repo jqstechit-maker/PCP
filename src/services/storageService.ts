@@ -113,6 +113,7 @@ class StorageService {
       (remoteOps) => {
         if (remoteOps) {
           safeStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(remoteOps));
+          this.syncDerivadosComOps();
           this.dispatchSyncEvent();
         }
       },
@@ -302,6 +303,7 @@ class StorageService {
     safeStorage.setItem(STORAGE_KEYS.OPS, JSON.stringify(opsAjustadas));
     firebaseSyncService.syncOpsToCloud(opsAjustadas);
     mysqlSyncService.syncOpsToMysql(opsAjustadas);
+    this.syncDerivadosComOps();
     this.dispatchSyncEvent();
   }
 
@@ -360,73 +362,91 @@ class StorageService {
       if (p.codigo) produtosMap.set(p.codigo.toLowerCase().trim(), p);
     });
 
-    // 3. Pedidos
+    // 3. Pedidos - Consolidação limpa e sincronizada com as etapas fabris das OPs
     const currentPedidos = this.getPedidosDirect();
-    const pedidosMap = new Map<string, Pedido>();
-    currentPedidos.forEach((p) => pedidosMap.set(p.pedidoNumber.toUpperCase().trim(), p));
+    const existingPedidosMap = new Map<string, Pedido>();
+    currentPedidos.forEach((p) => existingPedidosMap.set(p.pedidoNumber.toUpperCase().trim(), p));
 
+    // Agrupar OPs por número de pedido
+    const opsByPedido = new Map<string, OrdemProducao[]>();
     ops.forEach((op) => {
-      // Sync Produto
-      if (op.produto && op.produto.trim()) {
-        const prodKey = op.produto.toLowerCase().trim();
-        if (!produtosMap.has(prodKey)) {
-          const novoProd: Produto = {
-            id: `prod-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-            codigo: `BB-${op.produto.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase() || 'STD'}-${op.capacidadeCargaKg || 1000}`,
-            nome: op.produto.trim(),
-            modelo: op.modelo || 'Saia Superior / Fundo Fechado',
-            dimensoes: '90 x 90 x 120 cm',
-            capacidadeKg: op.capacidadeCargaKg || 1000,
-            gramaturaTecido: op.tecidoGrm || 160,
-            tipoAlca: '4 Alças de Canto 30cm',
-            tempoPadraoMinutos: 15,
-            metaProducaoHora: 20,
-          };
-          produtosMap.set(prodKey, novoProd);
-        }
-      }
-
-      // Sync Pedido
       if (op.pedidoNumber && op.pedidoNumber.trim() && op.pedidoNumber !== 'PED-VAR') {
         const pedKey = op.pedidoNumber.toUpperCase().trim();
-        if (!pedidosMap.has(pedKey)) {
-          const novoPed: Pedido = {
-            id: `ped-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-            pedidoNumber: op.pedidoNumber.toUpperCase().trim(),
-            cliente: op.cliente || 'Cliente Indefinido',
-            dataPedido: op.dataPedido || op.dataProgramada || new Date().toISOString().substring(0, 10),
-            dataPrevisaoEntrega: op.dataEntrega || new Date().toISOString().substring(0, 10),
-            status: op.status === 'FINALIZADO' ? 'CONCLUIDO' : (op.status === 'AGUARDANDO' || (op.quantidadeProduzida || 0) === 0) ? 'PENDENTE' : 'EM_PRODUCAO',
-            totalItens: op.quantidade || 0,
-            totalProduzido: op.quantidadeProduzida || 0,
-            ops: [op.opNumber],
-          };
-          pedidosMap.set(pedKey, novoPed);
-        } else {
-          const ped = pedidosMap.get(pedKey)!;
-          if (!ped.ops.includes(op.opNumber)) {
-            ped.ops.push(op.opNumber);
-          }
-          ped.totalItens = (ped.totalItens || 0) + (op.quantidade || 0);
-          ped.totalProduzido = (ped.totalProduzido || 0) + (op.quantidadeProduzida || 0);
+        if (!opsByPedido.has(pedKey)) {
+          opsByPedido.set(pedKey, []);
         }
+        opsByPedido.get(pedKey)!.push(op);
       }
     });
 
-    // Determinar status exato do pedido consolidado
-    pedidosMap.forEach((ped) => {
-      if (ped.totalItens > 0 && ped.totalProduzido >= ped.totalItens) {
-        ped.status = 'CONCLUIDO';
-      } else if (ped.totalProduzido > 0) {
-        ped.status = 'EM_PRODUCAO';
+    const pedidosAtualizadosMap = new Map<string, Pedido>();
+
+    // Processa todos os pedidos que possuem OPs vinculadas
+    opsByPedido.forEach((opsDoPedido, pedKey) => {
+      const existingPed = existingPedidosMap.get(pedKey);
+      const sampleOp = opsDoPedido[0];
+
+      const totalItens = opsDoPedido.reduce((acc, o) => acc + (Number(o.quantidade) || 0), 0);
+      const totalProduzido = opsDoPedido.reduce((acc, o) => acc + (Number(o.quantidadeProduzida) || 0), 0);
+      const listaOps = Array.from(new Set(opsDoPedido.map((o) => o.opNumber)));
+
+      // Determinação de status rigorosa com base nas etapas de produção das OPs
+      let statusCalculado: Pedido['status'] = 'PENDENTE';
+
+      if (existingPed?.status === 'CANCELADO') {
+        statusCalculado = 'CANCELADO';
       } else {
-        ped.status = 'PENDENTE';
+        const todasFinalizadas = opsDoPedido.length > 0 && opsDoPedido.every((o) => o.status === 'FINALIZADO');
+        const todasAguardando = opsDoPedido.every((o) => o.status === 'AGUARDANDO' && (o.quantidadeProduzida || 0) === 0);
+        const algumaEmAndamento = opsDoPedido.some(
+          (o) =>
+            o.status === 'CORTE' ||
+            o.status === 'PREPARAÇÃO' ||
+            o.status === 'CONFECÇÃO' ||
+            o.status === 'ATRASADO' ||
+            (o.quantidadeProduzida || 0) > 0 ||
+            (o.status === 'FINALIZADO' && !todasFinalizadas)
+        );
+
+        if (todasFinalizadas) {
+          statusCalculado = 'CONCLUIDO';
+        } else if (algumaEmAndamento || (totalProduzido > 0 && totalProduzido < totalItens)) {
+          statusCalculado = 'EM_PRODUCAO';
+        } else if (todasAguardando && totalProduzido === 0) {
+          statusCalculado = 'PENDENTE';
+        } else if (totalItens > 0 && totalProduzido >= totalItens) {
+          statusCalculado = 'CONCLUIDO';
+        } else {
+          statusCalculado = 'PENDENTE';
+        }
+      }
+
+      const pedidoConsolidado: Pedido = {
+        id: existingPed?.id || `ped-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        pedidoNumber: pedKey,
+        cliente: existingPed?.cliente || sampleOp.cliente || 'Cliente Indefinido',
+        dataPedido: existingPed?.dataPedido || sampleOp.dataPedido || sampleOp.dataProgramada || new Date().toISOString().substring(0, 10),
+        dataPrevisaoEntrega: existingPed?.dataPrevisaoEntrega || sampleOp.dataEntrega || new Date().toISOString().substring(0, 10),
+        status: statusCalculado,
+        totalItens,
+        totalProduzido: statusCalculado === 'CONCLUIDO' ? totalItens : totalProduzido,
+        ops: listaOps,
+        observacoes: existingPed?.observacoes,
+      };
+
+      pedidosAtualizadosMap.set(pedKey, pedidoConsolidado);
+    });
+
+    // Preservar pedidos avulsos criados manualmente que ainda não tenham OPs
+    existingPedidosMap.forEach((ped, pedKey) => {
+      if (!pedidosAtualizadosMap.has(pedKey)) {
+        pedidosAtualizadosMap.set(pedKey, ped);
       }
     });
 
     this.saveClientes(Array.from(clientesMap.values()));
     this.saveProdutos(Array.from(produtosMap.values()));
-    this.savePedidos(Array.from(pedidosMap.values()));
+    this.savePedidos(Array.from(pedidosAtualizadosMap.values()));
   }
 
   private getPedidosDirect(): Pedido[] {
@@ -448,12 +468,10 @@ class StorageService {
   }
 
   public getPedidos(): Pedido[] {
-    let list = this.getPedidosDirect();
-    if (list.length === 0 && this.getOps().length > 0) {
+    if (this.getOps().length > 0) {
       this.syncDerivadosComOps();
-      list = this.getPedidosDirect();
     }
-    return list;
+    return this.getPedidosDirect();
   }
 
   public savePedidos(pedidos: Pedido[]): void {

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { storageService } from '../../services/storageService';
-import { Pedido } from '../../types';
+import { Pedido, OrdemProducao } from '../../types';
 import { ModalInserirPedidoManual } from './ModalInserirPedidoManual';
 import { ModalManutencaoPedidos } from './ModalManutencaoPedidos';
 
@@ -22,6 +22,7 @@ type FiltroRapido = 'TODOS' | 'EM_ABERTO' | 'EM_PRODUCAO' | 'FINALIZADO';
 
 export const PedidosView: React.FC = () => {
   const [pedidos, setPedidos] = useState<Pedido[]>(() => storageService.getPedidos());
+  const [ops, setOps] = useState<OrdemProducao[]>(() => storageService.getOps());
   const [isAdmin, setIsAdmin] = useState<boolean>(() => storageService.isAdmin());
   const [podeEditar, setPodeEditar] = useState<boolean>(() => storageService.podeEditar());
   const [filtroRapido, setFiltroRapido] = useState<FiltroRapido>('TODOS');
@@ -35,6 +36,7 @@ export const PedidosView: React.FC = () => {
   useEffect(() => {
     const handleSync = () => {
       setPedidos(storageService.getPedidos());
+      setOps(storageService.getOps());
       setIsAdmin(storageService.isAdmin());
       setPodeEditar(storageService.podeEditar());
     };
@@ -48,24 +50,17 @@ export const PedidosView: React.FC = () => {
     };
   }, []);
 
-  // Helpers de classificação de status de pedidos
-  const isPedidoEmAberto = (ped: Pedido) => {
-    return (
-      ped.status === 'PENDENTE' ||
-      (ped.status !== 'CONCLUIDO' && ped.status !== 'CANCELADO' && ped.totalProduzido === 0)
-    );
-  };
+  // Mapeamento de OPs para consulta das etapas fabris em tempo real
+  const opMap = useMemo(() => {
+    const map = new Map<string, OrdemProducao>();
+    ops.forEach((op) => map.set(op.opNumber.toUpperCase().trim(), op));
+    return map;
+  }, [ops]);
 
-  const isPedidoEmProducao = (ped: Pedido) => {
-    return (
-      ped.status === 'EM_PRODUCAO' ||
-      (ped.status !== 'CONCLUIDO' && ped.status !== 'CANCELADO' && ped.totalProduzido > 0 && ped.totalProduzido < ped.totalItens)
-    );
-  };
-
-  const isPedidoFinalizado = (ped: Pedido) => {
-    return ped.status === 'CONCLUIDO' || (ped.totalItens > 0 && ped.totalProduzido >= ped.totalItens);
-  };
+  // Helpers de classificação de status de pedidos sincronizados com as OPs
+  const isPedidoEmAberto = (ped: Pedido) => ped.status === 'PENDENTE';
+  const isPedidoEmProducao = (ped: Pedido) => ped.status === 'EM_PRODUCAO';
+  const isPedidoFinalizado = (ped: Pedido) => ped.status === 'CONCLUIDO';
 
   // Contagens para os botões de filtros rápidos
   const contagens = useMemo(() => {
@@ -466,18 +461,34 @@ export const PedidosView: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* OPs Associadas */}
+                  {/* OPs Associadas e Etapas de Produção */}
                   {ped.ops && ped.ops.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[10px] text-slate-500 font-semibold">OPs:</span>
-                      {ped.ops.map((opNum) => (
-                        <span
-                          key={opNum}
-                          className="px-2 py-0.5 bg-slate-800 text-slate-300 rounded-md font-mono text-[10px] border border-slate-700"
-                        >
-                          {opNum}
-                        </span>
-                      ))}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">
+                        Ordens de Produção & Etapas:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {ped.ops.map((opNum) => {
+                          const opObj = opMap.get(opNum.toUpperCase().trim());
+                          const etapa = opObj?.status || opObj?.statusProcesso || 'AGUARDANDO';
+                          let corBadge = 'bg-slate-800 text-slate-300 border-slate-700';
+                          if (etapa === 'CORTE') corBadge = 'bg-purple-500/20 text-purple-300 border-purple-500/30';
+                          else if (etapa === 'PREPARAÇÃO') corBadge = 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+                          else if (etapa === 'CONFECÇÃO') corBadge = 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+                          else if (etapa === 'FINALIZADO') corBadge = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+
+                          return (
+                            <span
+                              key={opNum}
+                              className={`px-2 py-0.5 rounded-md font-mono text-[10px] border flex items-center space-x-1 ${corBadge}`}
+                              title={`OP: ${opNum} | Etapa Fabril: ${etapa}`}
+                            >
+                              <span className="font-semibold">{opNum}</span>
+                              <span className="opacity-80 text-[9px]">({etapa})</span>
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 

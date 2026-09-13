@@ -75,6 +75,7 @@ export interface Pedido {
   totalProduzido: number;
   ops: string[]; // List of OP IDs
   valorTotal?: number;
+  observacoes?: string;
 }
 
 export interface DadosPedidoManual {
